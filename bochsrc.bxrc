@@ -1,0 +1,23 @@
+# http://bochs.sourceforge.net/doc/docbook/user/bochsrc.html
+
+romimage: file="$BXSHARE/BIOS-bochs-legacy"
+vgaromimage: file="$BXSHARE/VGABIOS-lgpl-latest"
+
+cpu: count=1, reset_on_triple_fault=0
+memory: guest=32, host=32
+sound: waveoutdrv=sdl
+mouse: enabled=0
+
+parport1: enabled=1, file="parport.out"
+
+#floppya: 1_44=bin/$CONFIG/floppy.img, status=inserted
+#boot: floppy
+#ata0-master: type=disk, path=bin/$CONFIG/floppy.img, mode=flat, cylinders=64, heads=9, spt=5
+#boot: disk
+ata0-master: type=cdrom, path=bin/$CONFIG/boot.iso, status=inserted
+boot: cdrom
+
+#debug_symbols: file="bootloader/obj/$CONFIG/boot.sym"
+#debug_symbols: file="kernel/obj/$CONFIG/kernel.sym"
+
+log: bochsout.txt

@@ -1,0 +1,21 @@
+bin/
+obj/
+dep/
+build/
+
+bochsout.txt
+parport.out
+
+# VSCode
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# Windows
+
+Thumbs.db
+Desktop.ini
