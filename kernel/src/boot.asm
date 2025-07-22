@@ -126,8 +126,6 @@ panic:
     hlt
     jmp $-2
 
-panic_msg: db "cannot enable long mode", 0
-
 bits 64
 lm_start:
     mov rax, 0x10
@@ -145,6 +143,8 @@ lm_start:
     hlt
     jmp $-2
 
+section .data
+
 gdtr:
     dw .gdt_end - .gdt - 1
     dd .gdt
@@ -155,3 +155,5 @@ gdtr:
     dd 0x0000ffff, 0x00cf9a00
     dd 0x0000ffff, 0x00cf9200
 .gdt_end:
+
+panic_msg: db "cannot enable long mode", 0
