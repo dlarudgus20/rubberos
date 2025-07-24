@@ -1,12 +1,22 @@
-%define FLAGS 3
-%define MAGIC 0x1badb002
+%define MAGIC 0xe85250d6
 
 section .multiboot
 
-align 4
+align 8
+multiboot:
+; header
 dd MAGIC
-dd FLAGS
-dd -(MAGIC + FLAGS)
+dd 0
+dd .end - multiboot
+dd -(MAGIC + .end - multiboot)
+; framebuffer
+align 8, db 0
+dw 5, 0
+dd 20
+dd 1024, 768, 32
+; end
+align 8, db 0
+.end:
 
 section .bss
 
@@ -27,6 +37,65 @@ extern kmain
 bits 32
 global _start
 _start:
+    cli
+    cmp eax, 0x36d76289 ; check multiboot2 bootloader
+    jne panic
+    mov esp, stack_top
+
+    mov ecx, [ebx]
+    add ebx, 8
+.loop:
+    mov eax, [ebx]
+    cmp eax, 8
+    jne .cont
+    jmp .draw
+.cont:
+    mov eax, [ebx+4]
+    add ebx, eax
+    add ebx, 7
+    shr ebx, 3
+    shl ebx, 3
+    sub ecx, eax
+    jae .loop
+
+    mov esi, .msg
+    mov edi, 0xb80a0
+    mov ah, 0x0f
+    cld
+.msgloop:
+    lodsb
+    test al, al
+    jz .hltend
+    stosw
+    jmp .msgloop
+
+.msg: db "Video mode is not enabled", 0
+
+.draw:
+    mov esi, [ebx+8]
+    mov edi, [ebx+20]
+    xor ecx, ecx
+.yloop:
+    mov eax, ecx
+    mul edi
+    shl eax, 2
+    xor edx, edx
+.xloop:
+    mov ebp, ecx
+    xor ebp, edx
+    mov dword [esi + eax], ebp;0x007f00ff
+    add eax, 4
+    inc edx
+    cmp edx, edi
+    jb .xloop
+    inc ecx
+    cmp ecx, [ebx+24]
+    jb .yloop
+
+.hltend:
+    hlt
+    jmp $-2
+
     ; gdtr update
     lgdt [gdtr]
     jmp 0x18:.gdt_update
@@ -37,7 +106,6 @@ _start:
     mov fs, eax
     mov gs, eax
     mov ss, eax
-    mov esp, stack_top
     cld
 
     ; cpuid check
