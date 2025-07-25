@@ -4,7 +4,8 @@ dep/
 build/
 
 bochsout.txt
-parport.out
+bochs_com1.txt
+bochs_par1.txt
 
 # VSCode
 

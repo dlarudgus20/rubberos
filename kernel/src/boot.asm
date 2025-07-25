@@ -12,10 +12,10 @@ dd -(MAGIC + .end - multiboot)
 ; framebuffer
 align 8, db 0
 dw 5, 0
-dd 20
-dd 1024, 768, 32
+dd 20, 1024, 768, 32
 ; end
 align 8, db 0
+dd 0, 0
 .end:
 
 section .bss
@@ -38,25 +38,30 @@ bits 32
 global _start
 _start:
     cli
+    mov esp, stack_top
     cmp eax, 0x36d76289 ; check multiboot2 bootloader
     jne panic
-    mov esp, stack_top
 
-    mov ecx, [ebx]
+    mov ecx, ebx
+    add ecx, [ebx]
     add ebx, 8
 .loop:
-    mov eax, [ebx]
-    cmp eax, 8
+    cmp dword [ebx], 8
     jne .cont
-    jmp .draw
+    mov edi, [ebx+8]
+    sub esp, 8
+    mov eax, [ebx+20]
+    mov [esp], eax
+    mov eax, [ebx+24]
+    mov [esp+4], eax
+    jmp draw
 .cont:
-    mov eax, [ebx+4]
-    add ebx, eax
+    add ebx, [ebx+4]
     add ebx, 7
     shr ebx, 3
     shl ebx, 3
-    sub ecx, eax
-    jae .loop
+    cmp ebx, ecx
+    jb .loop
 
     mov esi, .msg
     mov edi, 0xb80a0
@@ -68,31 +73,28 @@ _start:
     jz .hltend
     stosw
     jmp .msgloop
+.hltend:
+    hlt
+    jmp $-2
 
 .msg: db "Video mode is not enabled", 0
 
-.draw:
-    mov esi, [ebx+8]
-    mov edi, [ebx+20]
-    xor ecx, ecx
-.yloop:
-    mov eax, ecx
-    mul edi
-    shl eax, 2
+draw:
     xor edx, edx
+.yloop:
+    xor ecx, ecx
 .xloop:
-    mov ebp, ecx
-    xor ebp, edx
-    mov dword [esi + eax], ebp;0x007f00ff
-    add eax, 4
-    inc edx
-    cmp edx, edi
-    jb .xloop
+    mov eax, ecx
+    xor eax, edx
+    mov [edi], eax
+    add edi, 4
     inc ecx
-    cmp ecx, [ebx+24]
+    cmp ecx, [esp]
+    jb .xloop
+    inc edx
+    cmp edx, [esp+4]
     jb .yloop
 
-.hltend:
     hlt
     jmp $-2
 
