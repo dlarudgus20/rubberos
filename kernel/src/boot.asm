@@ -1,13 +1,28 @@
-%define FLAGS 3
-%define MAGIC 0x1badb002
+%define MAGIC1 0x1badb002
+%define FLAGS1 7
+
+%define MAGIC2 0xe85250d6
 
 section .multiboot
+multiboot2:
+align 8
+dd MAGIC2
+dd 0
+dd .end - multiboot2
+dd -(MAGIC2 + .end - multiboot2)
+align 8, db 0
+dw 5, 0
+dd 20, 1024, 768, 32
+align 8, db 0
+dd 0, 0
+.end:
 
 align 4
-dd MAGIC
-dd FLAGS
-dd -(MAGIC + FLAGS)
-
+dd MAGIC1
+dd FLAGS1
+dd -(MAGIC1 + FLAGS1)
+dd 0, 0, 0, 0, 0
+dd 0, 1024, 768, 32
 section .bss
 
 align 0x1000
@@ -27,6 +42,62 @@ extern kmain
 bits 32
 global _start
 _start:
+    mov esp, stack_top
+    cmp eax, 0x36d76289
+    je mb2
+    cmp eax, 0x2badb002
+    je mb1
+    jmp panic
+
+mb2:
+    mov ecx, ebx
+    add ecx, [ebx]
+    add ebx, 8
+.loop:
+    cmp dword [ebx], 8
+    jne .cont
+    mov edi, [ebx+8]
+    sub esp, 8
+    mov eax, [ebx+20]
+    mov [esp], eax
+    mov eax, [ebx+24]
+    mov [esp+4], eax
+    jmp draw
+.cont:
+    add ebx, [ebx+4]
+    add ebx, 7
+    shr ebx, 3
+    shl ebx, 3
+    cmp ebx, ecx
+    jb .loop
+    jmp panic
+
+mb1:
+    mov edi, [ebx+88]
+    sub esp, 8
+    mov eax, [ebx+100]
+    mov [esp], eax
+    mov eax, [ebx+104]
+    mov [esp+4], eax
+
+draw:
+    xor edx, edx
+.yloop:
+    xor ecx, ecx
+.xloop:
+    mov eax, ecx
+    xor eax, edx
+    mov [edi], eax
+    add edi, 4
+    inc ecx
+    cmp ecx, [esp]
+    jb .xloop
+    inc edx
+    cmp edx, [esp+4]
+    jb .yloop
+    hlt
+    jmp $-2
+
     ; gdtr update
     lgdt [gdtr]
     jmp 0x18:.gdt_update
