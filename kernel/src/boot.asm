@@ -12,10 +12,10 @@ dd -(MAGIC + .end - multiboot)
 ; framebuffer
 align 8, db 0
 dw 5, 0
-dd 20
-dd 1024, 768, 32
+dd 20, 1024, 768, 32
 ; end
 align 8, db 0
+dd 0, 0
 .end:
 
 section .bss
@@ -35,28 +35,179 @@ section .text
 extern kmain
 
 bits 32
+
+%macro port_out8 2
+mov dx, %1
+mov al, %2
+out dx, al
+%endmacro
+%macro port_in8 1
+mov dx, %1
+in al, dx
+%endmacro
+
+init_serial:
+    push eax
+    push edx
+    port_out8 0x3f8 + 1, 0x00
+    port_out8 0x3f8 + 3, 0x80
+    port_out8 0x3f8 + 0, 0x03
+    port_out8 0x3f8 + 1, 0x00
+    port_out8 0x3f8 + 3, 0x03
+    port_out8 0x3f8 + 2, 0xc7
+    port_out8 0x3f8 + 4, 0x0b
+    port_out8 0x3f8 + 1, 0x01
+    pop edx
+    pop eax
+    ret
+
+write_serial:
+    push ebp
+    mov ebp, esp
+    push eax
+    push ebx
+    push ecx
+    push edx
+    mov ebx, [esp+24]
+    mov ecx, esp
+    add ecx, 28
+.loop:
+    mov ah, [ebx]
+    test ah, ah
+    jz .end
+    cmp ah, 0x25 ; %
+    jne .write
+    inc ebx
+    mov ah, [ebx]
+    test ah, ah
+    jz .end
+    cmp ah, 0x25 ; %
+    je .write
+    cmp ah, 0x78 ; x
+    je .hex
+    mov ah, 0x25
+    call .write_one
+    mov ah, [ebx]
+    call .write_one
+    jmp .cont
+.hex:
+    mov eax, [ecx]
+    add ecx, 4
+    sub esp, 8
+    call tohex
+    mov ah, 0x30 ; 0
+    call .write_one
+    mov ah, 0x78 ; x
+    call .write_one
+    mov ah, [esp]
+    call .write_one
+    mov ah, [esp+1]
+    call .write_one
+    mov ah, [esp+2]
+    call .write_one
+    mov ah, [esp+3]
+    call .write_one
+    mov ah, [esp+4]
+    call .write_one
+    mov ah, [esp+5]
+    call .write_one
+    mov ah, [esp+6]
+    call .write_one
+    mov ah, [esp+7]
+    add esp, 8
+.write:
+    call .write_one
+.cont:
+    inc ebx
+    jmp .loop
+.end:
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    mov esp, ebp
+    pop ebp
+    ret
+.write_one:
+    port_in8 0x3f8 + 5
+    test al, 0x20
+    jz .write_one
+    mov dx, 0x3f8
+    mov dx, 0x3f8
+    mov al, ah
+    out dx, al
+    ret
+
+tohex:
+    push eax
+    push ebx
+    mov bh, 8
+.loop:
+    mov bl, al
+    and bl, 0xf
+    cmp bl, 0xa
+    jb .num
+    add bl, 0x37
+    jmp .next
+.num:
+    add bl, 0x30
+.next:
+    mov [esp+19], bl
+    dec esp
+    dec bh
+    jz .end
+    shr eax, 4
+    jmp .loop
+.end:
+    add esp, 8
+    pop ebx
+    pop eax
+    ret
+
+%macro print_serial 1-*
+%rep %0-1
+%rotate -1
+push %1
+%endrep
+%rotate -1
+push %%str
+call write_serial
+add esp, %0 * 4
+jmp %%next
+%%str: db %1, 10, 0
+%%next:
+%endmacro
+
 global _start
 _start:
     cli
+    mov esp, stack_top
     cmp eax, 0x36d76289 ; check multiboot2 bootloader
     jne panic
-    mov esp, stack_top
 
-    mov ecx, [ebx]
+    call init_serial
+    print_serial "eax=%x, esp=%x", eax, esp
+
+    mov ecx, ebx
+    add ecx, [ebx]
     add ebx, 8
 .loop:
-    mov eax, [ebx]
-    cmp eax, 8
+    cmp dword [ebx], 8
     jne .cont
-    jmp .draw
+    mov edi, [ebx+8]
+    sub esp, 8
+    mov eax, [ebx+20]
+    mov [esp], eax
+    mov eax, [ebx+24]
+    mov [esp+4], eax
+    jmp draw
 .cont:
-    mov eax, [ebx+4]
-    add ebx, eax
+    add ebx, [ebx+4]
     add ebx, 7
     shr ebx, 3
     shl ebx, 3
-    sub ecx, eax
-    jae .loop
+    cmp ebx, ecx
+    jb .loop
 
     mov esi, .msg
     mov edi, 0xb80a0
@@ -68,31 +219,28 @@ _start:
     jz .hltend
     stosw
     jmp .msgloop
+.hltend:
+    hlt
+    jmp $-2
 
 .msg: db "Video mode is not enabled", 0
 
-.draw:
-    mov esi, [ebx+8]
-    mov edi, [ebx+20]
-    xor ecx, ecx
-.yloop:
-    mov eax, ecx
-    mul edi
-    shl eax, 2
+draw:
     xor edx, edx
+.yloop:
+    xor ecx, ecx
 .xloop:
-    mov ebp, ecx
-    xor ebp, edx
-    mov dword [esi + eax], ebp;0x007f00ff
-    add eax, 4
-    inc edx
-    cmp edx, edi
-    jb .xloop
+    mov eax, ecx
+    xor eax, edx
+    mov [edi], eax
+    add edi, 4
     inc ecx
-    cmp ecx, [ebx+24]
+    cmp ecx, [esp]
+    jb .xloop
+    inc edx
+    cmp edx, [esp+4]
     jb .yloop
 
-.hltend:
     hlt
     jmp $-2
 

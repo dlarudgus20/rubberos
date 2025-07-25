@@ -13,7 +13,8 @@ mouse: enabled=0
 ata0-master: type=cdrom, path=bin/$CONFIG/boot.iso, status=inserted
 boot: cdrom
 
-parport1: enabled=1, file="parport.out"
+com1: enabled=1, mode=file, dev="bochs_com1.txt"
+parport1: enabled=1, file="bochs_par1.txt"
 
 debug_symbols: file="kernel/obj/$CONFIG/kernel.sym"
 
