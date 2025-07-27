@@ -13,4 +13,4 @@ TARGET_BINARY := $(DIR_BIN)/kernel.sys
 build: $(TARGET_BINARY)
 
 $(TARGET_BINARY): $(TARGET_ELF)
-	$(TOOLSET_OBJCOPY) -O elf64-x86-64 -j .startup -j .text -j .rodata -j .data -j .bss -S -g $< $@
+	$(TOOLSET_OBJCOPY) -O elf64-x86-64 -j .startup -j .text -j .rodata -j .data -j .bss -j .stack -S $< $@

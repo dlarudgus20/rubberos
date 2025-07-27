@@ -1,5 +1,11 @@
 %define MAGIC 0xe85250d6
 
+extern __higher_half_displacement
+extern __tmp_page
+extern __stack_top_lba
+extern __stack_top
+extern kmain
+
 section .multiboot
 
 align 8
@@ -18,27 +24,14 @@ align 8, db 0
 dd 0, 0
 .end:
 
-section .bss
-
-align 0x1000
-page_pml4: resb 0x1000
-page_pdpt: resb 0x1000
-page_pdt: resb 0x1000
-page_pt: resb 0x10000
-
-align 16
-stack_bottom: resb 16384
-stack_top:
-
-section .text
-
-extern kmain
+section .startup alloc exec progbits
 
 bits 32
 global _start
 _start:
     cli
-    mov esp, stack_top
+    mov esp, __stack_top_lba
+
     cmp eax, 0x36d76289 ; check multiboot2 bootloader
     jne panic
 
@@ -48,13 +41,10 @@ _start:
 .loop:
     cmp dword [ebx], 8
     jne .cont
-    mov edi, [ebx+8]
-    sub esp, 8
-    mov eax, [ebx+20]
-    mov [esp], eax
-    mov eax, [ebx+24]
-    mov [esp+4], eax
-    jmp draw
+    push dword [ebx+24] ; fb_height
+    push dword [ebx+20] ; fb_width
+    push dword [ebx+8]  ; fb_addr
+    jmp init_long
 .cont:
     add ebx, [ebx+4]
     add ebx, 7
@@ -63,42 +53,9 @@ _start:
     cmp ebx, ecx
     jb .loop
 
-    mov esi, .msg
-    mov edi, 0xb80a0
-    mov ah, 0x0f
-    cld
-.msgloop:
-    lodsb
-    test al, al
-    jz .hltend
-    stosw
-    jmp .msgloop
-.hltend:
-    hlt
-    jmp $-2
+    jmp panic
 
-.msg: db "Video mode is not enabled", 0
-
-draw:
-    xor edx, edx
-.yloop:
-    xor ecx, ecx
-.xloop:
-    mov eax, ecx
-    xor eax, edx
-    mov [edi], eax
-    add edi, 4
-    inc ecx
-    cmp ecx, [esp]
-    jb .xloop
-    inc edx
-    cmp edx, [esp+4]
-    jb .yloop
-
-    hlt
-    jmp $-2
-
-    ; gdtr update
+init_long:
     lgdt [gdtr]
     jmp 0x18:.gdt_update
 .gdt_update:
@@ -135,35 +92,54 @@ draw:
     jz panic
 
     ; set up paging
-    mov ebx, page_pml4
-    mov eax, page_pdpt
+    ; pml4
+    mov ebx, __tmp_page
+    mov eax, __tmp_page + 0x1000    ; 0000 0*
     or eax, 3
     mov [ebx], eax
-    mov ebx, page_pdpt
-    mov eax, page_pdt
+    mov eax, __tmp_page + 0x2000    ; ffff 8*
+    or eax, 3
+    mov [ebx+0x800], eax
+    ; pdpt (lower)
+    mov ebx, __tmp_page + 0x1000
+    mov eax, __tmp_page + 0x3000
     or eax, 3
     mov [ebx], eax
-    mov ebx, page_pdt
-    mov eax, page_pt
+    ; pdpt (higher)
+    mov ebx, __tmp_page + 0x2000
+    mov eax, __tmp_page + 0x4000    ; ffff 8000
     or eax, 3
-    mov ecx, 16
+    mov [ebx], eax
+    mov eax, __tmp_page + 0x5000    ; ffff 8001 __*
+    or eax, 3
+    mov [ebx+4*8], eax
+    ; pdt (lower)
+    mov ebx, __tmp_page + 0x3000
+    mov dword [ebx+0x08], 0x00200083
+    mov dword [ebx+0x10], 0x00400083
+    mov dword [ebx+0x18], 0x00600083
+    ; pdt (kernel)
+    mov ebx, __tmp_page + 0x4000
+    mov dword [ebx], 0x00200083     ; kernel 4mb
+    mov dword [ebx+8], 0x00400083
+    mov dword [ebx+0x78*8], 0x00600083 ; stack
+    mov dword [ebx+0x80*8], 0x00800083 ; stack
+    ; pdt (fb)
+    mov ebx, __tmp_page + 0x5000
+    mov eax, [esp]
+    and eax, 0xffe00000
+    or eax, 0x83
+    mov ecx, 512
 .pdt_loop:
     mov [ebx], eax
-    add eax, 0x1000
     add ebx, 8
+    add eax, 0x200000
+    jc .end_pdt
     dec ecx
     jnz .pdt_loop
-    mov ebx, page_pt
-    mov eax, 3
-    mov ecx, 0x2000
-.pt_loop:
-    mov [ebx], eax
-    add eax, 0x1000
-    add ebx, 8
-    dec ecx
-    jnz .pt_loop
+.end_pdt:
 
-    mov eax, page_pml4
+    mov eax, __tmp_page
     mov cr3, eax
     mov eax, cr4
     or eax, 1 << 5
@@ -182,17 +158,6 @@ draw:
     jmp 0x08:lm_start
 
 panic:
-    mov esi, panic_msg
-    mov edi, 0xb80a0
-    mov ah, 0x07
-    cld
-.loop:
-    lodsb
-    test al, al
-    jz .end
-    stosw
-    jmp .loop
-.end:
     hlt
     jmp $-2
 
@@ -204,16 +169,24 @@ lm_start:
     mov fs, rax
     mov gs, rax
     mov ss, rax
-    mov rsp, stack_top
+    mov rsp, __stack_top
     mov rbp, rsp
     cld
 
-    call kmain
+    xor rdi, rdi
+    mov ebx, [rsp-12]
+    and rdi, 0x1fffff
+    mov rax, 0xffff800100000000
+    add rdi, rax
+
+    mov esi, [rsp-8]
+    mov edx, [rsp-4]
+    mov rax, kmain
+    call rax
+
     cli
     hlt
     jmp $-2
-
-section .data
 
 gdtr:
     dw .gdt_end - .gdt - 1
@@ -225,5 +198,3 @@ gdtr:
     dd 0x0000ffff, 0x00cf9a00
     dd 0x0000ffff, 0x00cf9200
 .gdt_end:
-
-panic_msg: db "cannot enable long mode", 0

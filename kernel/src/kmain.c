@@ -1,8 +1,12 @@
-void kmain(void) {
-    volatile short *video = (short *)0xb80a0;
-    const char* str = "hello world";
-    for (int i = 0; str[i] != 0; i++) {
-        video[i] = 0x0f00 | str[i];
+void kmain(volatile int* video, int width, int height) {
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int color = x ^ y;
+            if (y < 10 || y >= height - 10 || x < 10 || x >= width - 10) {
+                color = 0x0000ff00;
+            }
+            video[x + y * width] = color;
+        }
     }
     while (1) __asm__ __volatile__ ("hlt");
 }
