@@ -11,3 +11,4 @@
    * OVMF (For UEFI emulation)
    * gdb targeted for x86_64-elf (For `make gdb`)
  * bochs (For `make bochs`)
+ * gtest (For `make test`)
