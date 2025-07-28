@@ -11,10 +11,13 @@ TESTS_EXECUTABLES += $(patsubst $(DIR_TEST)/%.cpp, $(DIR_BIN_TEST)/%, $(TESTS_SO
 
 DEPENDENCIES += $(patsubst $(DIR_SRC)/%.c, $(DIR_DEP)/%.c.d, $(C_SOURCES))
 
-LIBRARIES += $(foreach ref, $(PROJECT_REFS), ../$(ref)/$(DIR_BIN)/$(ref).a)
-INCLUDES += $(foreach ref, $(PROJECT_REFS), ../$(ref)/include)
+REFS_LIBS := $(foreach ref, $(PROJECT_REFS), ../$(ref)/$(DIR_BIN)/$(ref).a)
+REFS_INCS := $(foreach ref, $(PROJECT_REFS), ../$(ref)/include)
 
-INCLUDE_FLAGS += $(patsubst %, -iquote %, $(INCLUDES))
+LIBRARIES += $(REFS_LIBS)
+INCLUDES += $(REFS_INCS)
+
+INCLUDE_FLAGS += $(patsubst %, -I %, $(INCLUDES))
 
 ifeq ($(TARGET_TYPE), )
 ifneq ($(TARGET_NAME), )
@@ -42,8 +45,7 @@ PHONY_TARGETS += all build test rebuild mostlyclean clean distclean cleanimpl
 .FORCE:
 
 ifeq ($(TOOLSET), host)
-test: $(TESTS_EXECUTABLES)
-	echo $(TESTS_EXECUTABLES)
+test: $(REFS_LIBS) $(TESTS_EXECUTABLES)
 else
 test:
 	TOOLSET=host make test
@@ -53,20 +55,14 @@ rebuild:
 	make clean
 	make build
 
-mostlyclean:
+mostlyclean: cleanimpl
 	-rm -rf $(DIR_OBJ)
 	-rm -rf $(DIR_DEP)
-	-make cleanimpl
 
 clean: mostlyclean
 	-rm -rf $(DIR_BIN)
 
-distclean: clean clean_dirs
-ifneq ($(TOOLSET), host)
-ifneq ($(TESTS_SOURCES), )
-	TOOLSET=host make distclean
-endif
-endif
+distclean: cleanimpl clean_dirs
 
 ifeq ($(TARGET_TYPE), executable)
 $(TARGET): $(LD_SCRIPT) $(C_OBJECTS) $(AS_OBJECTS) $(LIBRARIES) | $(DIRS)
@@ -97,8 +93,13 @@ $(DIR_OBJ)/%.asm.o: $(DIR_SRC)/%.asm | $(DIRS)
 	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ)/$*.asm.dump
 
 $(DIR_BIN_TEST)/%: $(TARGET) $(LIBRARIES) .FORCE | $(DIRS)
-	g++ $(TEST_CXXFLAGS) -iquote include $(INCLUDE_FLAGS) $(DIR_TEST)/$*.cpp $(TARGET) $(LIBRARIES) -lgtest -lgtest_main -o $@
+	g++ $(TEST_CXXFLAGS) -iquote include $(INCLUDE_FLAGS) $(DIR_TEST)/$*.cpp $(LIBRARIES) $(TARGET) $(LIBRARIES) -lgtest -lgtest_main -o $@
 	./$@
+
+$(REFS_LIBS): .FORCE
+	for dir in $(PROJECT_REFS); do \
+		make build -C ../$$dir || exit 1; \
+	done
 
 ifeq ($(filter $(subst build, , $(PHONY_TARGETS)), $(MAKECMDGOALS)), )
 include $(DEPENDENCIES)

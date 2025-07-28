@@ -1,6 +1,5 @@
-TARGET_NAME := libbuddy
+TARGET_NAME := libfreec
 TARGET_TYPE := static-lib
-PROJECT_REFS := libfreec
 
 all: build
 

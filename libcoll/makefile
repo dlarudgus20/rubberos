@@ -1,4 +1,4 @@
-TARGET_NAME := libbuddy
+TARGET_NAME := libcoll
 TARGET_TYPE := static-lib
 PROJECT_REFS := libfreec
 

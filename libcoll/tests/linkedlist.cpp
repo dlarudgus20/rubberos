@@ -3,12 +3,12 @@
 
 extern "C" {
 #define restrict
-#include "slab/slab.h"
+#include "collections/linkedlist.h"
 };
 
 #include <stdlib.h>
 #include <stdio.h>
 
-TEST(slab_test, trivial) {
+TEST(linkedlist_test, trivial) {
     EXPECT_EQ(2, 2);
 }

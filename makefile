@@ -19,7 +19,7 @@ else
 QEMU_FLAGS += -serial stdio
 endif
 
-SUBDIRS := libbuddy libslab kernel
+SUBDIRS := libcoll libbuddy libslab kernel
 
 .PHONY: all build re rebuild run rerun dbg debug gdb bochs test mostlyclean clean distclean
 

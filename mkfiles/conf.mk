@@ -10,11 +10,11 @@ ifeq ($(TOOLSET), )
 
 TOOLSET_PREFIX			?= x86_64-elf
 TOOLSET_GCC				?= $(TOOLSET_PREFIX)-gcc
-TOOLSET_AR				?= $(TOOLSET_PREFIX)-ar
+TOOLSET_AR				?= $(TOOLSET_PREFIX)-gcc-ar
 TOOLSET_NASM			?= nasm
 TOOLSET_OBJCOPY			?= $(TOOLSET_PREFIX)-objcopy
 TOOLSET_OBJDUMP			?= $(TOOLSET_PREFIX)-objdump
-TOOLSET_NM				?= $(TOOLSET_PREFIX)-nm
+TOOLSET_NM				?= $(TOOLSET_PREFIX)-gcc-nm
 TOOLSET_GDB				?= $(TOOLSET_PREFIX)-gdb
 
 TOOLSET_QEMU			?= qemu-system-x86_64
@@ -29,11 +29,11 @@ LDFLAGS += -ffreestanding -nostdlib -Xlinker --gc-sections
 else ifeq ($(TOOLSET), host)
 
 TOOLSET_GCC				?= gcc
-TOOLSET_AR				?= ar
+TOOLSET_AR				?= gcc-ar
 TOOLSET_NASM			?= nasm
 TOOLSET_OBJCOPY			?= objcopy
 TOOLSET_OBJDUMP			?= objdump
-TOOLSET_NM				?= nm
+TOOLSET_NM				?= gcc-nm
 TOOLSET_GDB				?= gdb
 
 CFLAGS += -std=c11 -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
@@ -84,14 +84,6 @@ endif
 	mkdir -p $(DIR_DEP)
 
 clean_dirs:
-	-rm -rf $(DIR_BIN)
-	-rm -rf $(DIR_OBJ)
-	-rm -rf $(DIR_DEP)
-ifneq ($(TOOLSET), )
-	-rmdir bin/$(TOOLSET)
-	-rmdir obj/$(TOOLSET)
-	-rmdir dep/$(TOOLSET)
-endif
-	-rmdir bin
-	-rmdir obj
-	-rmdir dep
+	-rm -rf bin
+	-rm -rf obj
+	-rm -rf dep
