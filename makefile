@@ -19,9 +19,9 @@ else
 QEMU_FLAGS += -serial stdio
 endif
 
-SUBDIRS := libcoll libbuddy libslab kernel
+SUBDIRS := libfreec libcoll libbuddy libslab kernel
 
-.PHONY: all build re rebuild run rerun dbg debug gdb bochs test mostlyclean clean distclean
+.PHONY: all build re rebuild run rerun dbg debug gdb bochs bulid-test test clean-test mostlyclean clean distclean
 
 build:
 	for dir in $(SUBDIRS); do \
@@ -48,9 +48,19 @@ gdb:
 bochs: build
 	CONFIG=$(CONFIG) $(TOOLSET_BOCHS) -qf $(BOCHSRC)
 
+build-test:
+	for dir in $(SUBDIRS); do \
+		make build-test -C $$dir || exit 1; \
+	done
+
 test:
 	for dir in $(SUBDIRS); do \
 		make test -C $$dir || exit 1; \
+	done
+
+clean-test:
+	for dir in $(SUBDIRS); do \
+		make clean-test -C $$dir || exit 1; \
 	done
 
 mostlyclean:

@@ -76,14 +76,17 @@ endif
 DIR_SRC := src
 DIR_TEST := tests
 
-ifneq ($(and $(filter $(TOOLSET), host), $(wildcard $(DIR_TEST)/*)), )
-IS_TEST := 1
+ifneq ($(wildcard $(DIR_TEST)/*), )
+HAS_TEST := 1
+ifneq ($(filter $(TOOLSET), host), )
+IS_TEST_ON := 1
 endif
-	
+endif
+
 DIR_BIN := bin/$(DIR_INFIX)
 DIR_OBJ := obj/$(DIR_INFIX)
 DIR_DEP := dep/$(DIR_INFIX)
-ifdef IS_TEST
+ifdef IS_TEST_ON
 DIR_BIN_TEST := $(DIR_BIN)/tests
 DIR_OBJ_TEST := $(DIR_OBJ)/tests
 DIR_DEP_TEST := $(DIR_DEP)/tests
@@ -95,7 +98,7 @@ endif
 PHONY_TARGETS += clean_dirs
 
 $(DIRS):
-ifdef IS_TEST
+ifdef IS_TEST_ON
 	mkdir -p $(DIR_BIN_TEST)
 	mkdir -p $(DIR_OBJ_TEST)
 	mkdir -p $(DIR_DEP_TEST)

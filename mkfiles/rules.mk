@@ -8,7 +8,7 @@ AS_OBJECTS := $(patsubst $(DIR_SRC)/%.asm, $(DIR_OBJ)/%.asm.o, $(AS_SOURCES))
 
 DEPENDENCIES += $(patsubst $(DIR_SRC)/%.c, $(DIR_DEP)/%.c.d, $(C_SOURCES))
 
-ifdef IS_TEST
+ifdef IS_TEST_ON
 TEST_SOURCES := $(wildcard $(DIR_TEST)/*.cpp)
 TEST_OBJECTS := $(patsubst $(DIR_TEST)/%.cpp, $(DIR_OBJ_TEST)/%.cpp.o, $(TEST_SOURCES))
 TEST_DEPS := $(patsubst $(DIR_TEST)/%.cpp, $(DIR_DEP_TEST)/%.cpp.d, $(TEST_SOURCES))
@@ -46,7 +46,7 @@ $(error '$(TARGET_TYPE)': unknown target type.)
 endif
 
 ifneq ($(TARGET_TYPE), static-lib)
-ifdef IS_TEST
+ifneq ($(TEST_SOURCES), )
 $(error [rules.mk] test is available only for static-lib targets.)
 endif
 endif
@@ -55,14 +55,20 @@ PHONY_TARGETS += all build-test test clean-test build rebuild mostlyclean clean 
 .PHONY: $(PHONY_TARGETS) .FORCE
 .FORCE:
 
-ifeq ($(TOOLSET), host)
+ifndef HAS_TEST
+build-test:
+
+test:
+
+clean-test:
+else
+ifdef IS_TEST_ON
 build-test: $(TEST_EXECUTABLE)
 
 test: build-test
 	./$(TEST_EXECUTABLE)
 
 clean-test: clean
-
 else
 build-test:
 	TOOLSET=host make build-test
@@ -72,6 +78,7 @@ test:
 
 clean-test:
 	TOOLSET=host make clean
+endif
 endif
 
 rebuild:
@@ -115,7 +122,7 @@ $(DIR_OBJ)/%.asm.o: $(DIR_SRC)/%.asm | $(DIRS)
 	$(TOOLSET_NASM) $(NASMFLAGS) $< -o $@ -l $(DIR_OBJ)/$*.asm.lst
 	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ)/$*.asm.dump
 
-ifdef IS_TEST
+ifdef IS_TEST_ON
 
 $(DIR_OBJ_TEST)/%.cpp.o: $(DIR_TEST)/%.cpp | $(DIRS)
 	$(TEST_GXX) $(TEST_CXXFLAGS) $(TEST_INCLUDE_FLAGS) $(INCLUDE_FLAGS) -c $< -o $@
@@ -140,7 +147,7 @@ $(REFS_LIBS): .FORCE
 
 ifeq ($(filter $(subst build, , $(PHONY_TARGETS)), $(MAKECMDGOALS)), )
 include $(DEPENDENCIES)
-ifdef IS_TEST
+ifdef IS_TEST_ON
 include $(TEST_DEPS)
 endif
 endif

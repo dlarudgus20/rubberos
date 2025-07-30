@@ -48,22 +48,6 @@
             "problemMatcher": "$gcc"
         },
         {
-            "label": "Build Test for libfreec (debug)",
-            "type": "shell",
-            "command": "make",
-            "args": ["build-test", "-C", "libfreec"],
-            "options": { "env": { "CONFIG": "debug" } },
-            "problemMatcher": "$gcc"
-        },
-        {
-            "label": "Build Test for libfreec (release)",
-            "type": "shell",
-            "command": "make",
-            "args": ["build-test", "-C", "libfreec"],
-            "options": { "env": { "CONFIG": "release" } },
-            "problemMatcher": "$gcc"
-        },
-        {
             "label": "Build Test for libslab (debug)",
             "type": "shell",
             "command": "make",

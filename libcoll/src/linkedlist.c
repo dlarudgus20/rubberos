@@ -15,7 +15,7 @@ bool linkedlist_is_nil(struct linkedlist* list, struct linkedlist_link* link) {
 }
 
 bool linkedlist_is_empty(struct linkedlist* list) {
-    return list->dummy.prev == list->dummy.next;
+    return list->dummy.prev == &list->dummy && list->dummy.prev == list->dummy.next;
 }
 
 struct linkedlist_link* linkedlist_head(struct linkedlist* list) {
