@@ -114,6 +114,18 @@ static size_t page_object_offset(size_t object_align) {
     return align_ceil(sizeof(struct page), slot_alignof(object_align));
 }
 
+size_t slab_page_offset(size_t align) {
+    return page_object_offset(align);
+}
+
+size_t slab_slot_header_size(void) {
+    return sizeof(struct slot);
+}
+
+size_t slab_redzone_size(void) {
+    return REDZONE_SIZE;
+}
+
 static bool object_info_is_valid(struct slab_allocator* slab) {
     return page_object_offset(slab->object_align) + slab->slot_size <= SLAB_PAGE;
 }
@@ -180,10 +192,6 @@ void slab_init(struct slab_allocator* slab, size_t size, size_t align, const str
 
     linkedlist_init(&slab->partial_list);
     slab->page_allocator = *pa;
-}
-
-size_t slab_page_offset(size_t align) {
-    return page_object_offset(align);
 }
 
 static struct page* slab_alloc_page(struct slab_allocator* slab) {

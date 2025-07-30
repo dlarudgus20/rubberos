@@ -42,7 +42,7 @@ LDFLAGS +=
 
 TEST_GXX				?= g++
 
-TEST_CXXFLAGS += -std=c++17 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
+TEST_CXXFLAGS += -std=c++20 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
 TEST_LDFLAGS +=
 
 ifeq ($(CONFIG), debug)

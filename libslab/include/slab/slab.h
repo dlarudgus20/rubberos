@@ -22,8 +22,10 @@ struct slab_allocator {
     uint16_t slot_size;
 };
 
-void slab_init(struct slab_allocator* slab, size_t size, size_t align, const struct slab_page_allocator* pa);
 size_t slab_page_offset(size_t align);
+size_t slab_slot_header_size(void);
+size_t slab_redzone_size(void);
 
+void slab_init(struct slab_allocator* slab, size_t size, size_t align, const struct slab_page_allocator* pa);
 void* slab_alloc(struct slab_allocator* slab);
 void slab_dealloc(struct slab_allocator* slab, void* ptr);
