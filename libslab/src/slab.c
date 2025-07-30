@@ -13,7 +13,7 @@
 #define UNUSED_FILL 0xf2
 
 struct page {
-    alignas(SLAB_PAGE) struct linkedlist_link link;
+    struct linkedlist_link link;
     uint16_t free_index;
     uint16_t alloc_count;
 };
@@ -30,7 +30,7 @@ struct object_info {
 
 static size_t align_ceil(size_t x, size_t align) {
     const size_t mask = align - 1;
-    return (x + mask) & !mask;
+    return (x + mask) & ~mask;
 }
 
 static size_t slot_alignof(size_t object_align) {
@@ -163,19 +163,19 @@ static struct slot* page_pop_front(struct page* page, struct object_info info, b
     return front;
 }
 
-static void page_push_front(struct page* page, struct object_info, struct slot* slot) {
+static void page_push_front(struct page* page, struct slot* slot) {
     slot->next = page->free_index;
     page->free_index = (uint16_t)((uintptr_t)slot - (uintptr_t)page);
     page->alloc_count--;
 }
 
-void slab_init(struct slab_allocator* slab, size_t object_size, size_t object_align, const struct slab_page_allocator* pa) {
-    assert(object_info_is_valid((struct object_info){ .size = object_size, .align = object_align }));
+void slab_init(struct slab_allocator* slab, size_t size, size_t align, const struct slab_page_allocator* pa) {
+    assert(object_info_is_valid((struct object_info){ .size = size, .align = align }));
 
     linkedlist_init(&slab->partial_list);
     slab->page_allocator = *pa;
-    slab->object_size = object_size;
-    slab->object_align = object_align;
+    slab->object_size = size;
+    slab->object_align = align;
 }
 
 static struct page* slab_alloc_page(struct slab_allocator* slab) {
@@ -196,16 +196,14 @@ void* slab_alloc(struct slab_allocator* slab) {
     struct object_info info = { .size = slab->object_size, .align = slab->object_align };
 
     struct page* page;
-    {
-        struct linkedlist_link* const head = linkedlist_head(&slab->partial_list);
-        if (head == linkedlist_nil(&slab->partial_list)) {
-            page = slab_alloc_page(slab);
-            if (!page) {
-                return NULL;
-            }
-        } else {
-            page = objectof(head, struct page, link);
+    if (linkedlist_is_empty(&slab->partial_list)) {
+        page = slab_alloc_page(slab);
+        if (!page) {
+            return NULL;
         }
+    } else {
+        struct linkedlist_link* const head = linkedlist_head(&slab->partial_list);
+        page = objectof(head, struct page, link);
     }
 
     bool full;
@@ -226,7 +224,7 @@ void slab_dealloc(struct slab_allocator* slab, void* ptr) {
 
     struct page* page = page_from_slot(slot);
     const bool was_full = page->free_index == 0;
-    page_push_front(page, info, slot);
+    page_push_front(page, slot);
 
     if (page->alloc_count == 0) {
         if (!was_full) {

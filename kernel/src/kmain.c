@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <stdnoreturn.h>
 
 #include <freec/assert.h>
 
@@ -110,7 +111,7 @@ void kmain(volatile int* video, int width, int height) {
     while (1) __asm__ __volatile__ ("hlt");
 }
 
-[[noreturn]] void panic_impl(const char* msg, const char* file, const char* func, unsigned line) {
+noreturn void panic_impl(const char* msg, const char* file, const char* func, unsigned line) {
     printf_serial("[%s:%s:%d] %s\n", file, func, line, msg);
     __asm__ __volatile__ ( "cli" );
     while (1) __asm__ __volatile__ ("hlt");

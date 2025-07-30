@@ -1,15 +1,20 @@
 CODE_SECTIONS ?= .text
 
-C_SOURCES += $(wildcard $(DIR_SRC)/*.c)
+C_SOURCES := $(wildcard $(DIR_SRC)/*.c)
 C_OBJECTS := $(patsubst $(DIR_SRC)/%.c, $(DIR_OBJ)/%.c.o, $(C_SOURCES))
 
-AS_SOURCES += $(wildcard $(DIR_SRC)/*.asm)
+AS_SOURCES := $(wildcard $(DIR_SRC)/*.asm)
 AS_OBJECTS := $(patsubst $(DIR_SRC)/%.asm, $(DIR_OBJ)/%.asm.o, $(AS_SOURCES))
 
-TESTS_SOURCES += $(wildcard $(DIR_TEST)/*.cpp)
-TESTS_EXECUTABLES += $(patsubst $(DIR_TEST)/%.cpp, $(DIR_BIN_TEST)/%, $(TESTS_SOURCES))
-
 DEPENDENCIES += $(patsubst $(DIR_SRC)/%.c, $(DIR_DEP)/%.c.d, $(C_SOURCES))
+
+ifdef IS_TEST
+TEST_SOURCES := $(wildcard $(DIR_TEST)/*.cpp)
+TEST_OBJECTS := $(patsubst $(DIR_TEST)/%.cpp, $(DIR_OBJ_TEST)/%.cpp.o, $(TEST_SOURCES))
+TEST_DEPS := $(patsubst $(DIR_TEST)/%.cpp, $(DIR_DEP_TEST)/%.cpp.d, $(TEST_SOURCES))
+TEST_EXECUTABLE := $(DIR_BIN_TEST)/test
+TEST_CXXFLAGS += -iquote include -iquote $(DIR_TEST)
+endif
 
 REFS_LIBS := $(foreach ref, $(PROJECT_REFS), ../$(ref)/$(DIR_BIN)/$(ref).a)
 REFS_INCS := $(foreach ref, $(PROJECT_REFS), ../$(ref)/include)
@@ -40,15 +45,33 @@ else ifneq ($(TARGET_NAME), )
 $(error '$(TARGET_TYPE)': unknown target type.)
 endif
 
-PHONY_TARGETS += all build test rebuild mostlyclean clean distclean cleanimpl
+ifneq ($(TARGET_TYPE), static-lib)
+ifdef IS_TEST
+$(error [rules.mk] test is available only for static-lib targets.)
+endif
+endif
+
+PHONY_TARGETS += all build-test test clean-test build rebuild mostlyclean clean distclean cleanimpl
 .PHONY: $(PHONY_TARGETS) .FORCE
 .FORCE:
 
 ifeq ($(TOOLSET), host)
-test: $(REFS_LIBS) $(TESTS_EXECUTABLES)
+build-test: $(TEST_EXECUTABLE)
+
+test: build-test
+	./$(TEST_EXECUTABLE)
+
+clean-test: clean
+
 else
+build-test:
+	TOOLSET=host make build-test
+
 test:
 	TOOLSET=host make test
+
+clean-test:
+	TOOLSET=host make clean
 endif
 
 rebuild:
@@ -92,9 +115,23 @@ $(DIR_OBJ)/%.asm.o: $(DIR_SRC)/%.asm | $(DIRS)
 	$(TOOLSET_NASM) $(NASMFLAGS) $< -o $@ -l $(DIR_OBJ)/$*.asm.lst
 	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ)/$*.asm.dump
 
-$(DIR_BIN_TEST)/%: $(TARGET) $(LIBRARIES) .FORCE | $(DIRS)
-	g++ $(TEST_CXXFLAGS) -iquote include $(INCLUDE_FLAGS) $(DIR_TEST)/$*.cpp $(LIBRARIES) $(TARGET) $(LIBRARIES) -lgtest -lgtest_main -o $@
-	./$@
+ifdef IS_TEST
+
+$(DIR_OBJ_TEST)/%.cpp.o: $(DIR_TEST)/%.cpp | $(DIRS)
+	$(TEST_GXX) $(TEST_CXXFLAGS) $(TEST_INCLUDE_FLAGS) $(INCLUDE_FLAGS) -c $< -o $@
+	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ_TEST)/$*.cpp.dump
+
+$(DIR_DEP_TEST)/%.cpp.d: $(DIR_TEST)/%.cpp | $(DIRS)
+	$(TEST_GXX) $(TEST_CXXFLAGS) $(TEST_INCLUDE_FLAGS) $(INCLUDE_FLAGS) $< -MM -MT $(DIR_OBJ_TEST)/$*.cpp.o \
+		| sed 's@\($(DIR_OBJ_TEST)/$*.cpp.o\)[ :]*@\1 $@ : @g' > $@
+
+$(TEST_EXECUTABLE): $(TEST_OBJECTS) $(TARGET) $(LIBRARIES) | $(DIRS)
+	$(TEST_GXX) $(TEST_LDFLAGS) -o $@ $(TEST_OBJECTS) $(TARGET) $(LIBRARIES) -lgtest -lgtest_main \
+		-Xlinker -Map=$(DIR_OBJ_TEST)/test.map
+	$(TOOLSET_NM) $(NM_FLAGS) $@ > $(DIR_OBJ_TEST)/test.nm
+	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ_TEST)/test.total.disasm
+
+endif
 
 $(REFS_LIBS): .FORCE
 	for dir in $(PROJECT_REFS); do \
@@ -103,4 +140,7 @@ $(REFS_LIBS): .FORCE
 
 ifeq ($(filter $(subst build, , $(PHONY_TARGETS)), $(MAKECMDGOALS)), )
 include $(DEPENDENCIES)
+ifdef IS_TEST
+include $(TEST_DEPS)
+endif
 endif

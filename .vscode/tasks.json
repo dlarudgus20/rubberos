@@ -1,0 +1,83 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build bootable image (debug)",
+            "type": "shell",
+            "command": "make",
+            "options": { "env": { "CONFIG": "debug" } },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build bootable image (release)",
+            "type": "shell",
+            "command": "make",
+            "options": { "env": { "CONFIG": "release" } },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build Test for libbuddy (debug)",
+            "type": "shell",
+            "command": "make",
+            "args": ["build-test", "-C", "libbuddy"],
+            "options": { "env": { "CONFIG": "debug" } },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build Test for libbuddy (release)",
+            "type": "shell",
+            "command": "make",
+            "args": ["build-test", "-C", "libbuddy"],
+            "options": { "env": { "CONFIG": "release" } },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build Test for libcoll (debug)",
+            "type": "shell",
+            "command": "make",
+            "args": ["build-test", "-C", "libcoll"],
+            "options": { "env": { "CONFIG": "debug" } },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build Test for libcoll (release)",
+            "type": "shell",
+            "command": "make",
+            "args": ["build-test", "-C", "libcoll"],
+            "options": { "env": { "CONFIG": "release" } },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build Test for libfreec (debug)",
+            "type": "shell",
+            "command": "make",
+            "args": ["build-test", "-C", "libfreec"],
+            "options": { "env": { "CONFIG": "debug" } },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build Test for libfreec (release)",
+            "type": "shell",
+            "command": "make",
+            "args": ["build-test", "-C", "libfreec"],
+            "options": { "env": { "CONFIG": "release" } },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build Test for libslab (debug)",
+            "type": "shell",
+            "command": "make",
+            "args": ["build-test", "-C", "libslab"],
+            "options": { "env": { "CONFIG": "debug" } },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build Test for libslab (release)",
+            "type": "shell",
+            "command": "make",
+            "args": ["build-test", "-C", "libslab"],
+            "options": { "env": { "CONFIG": "release" } },
+            "problemMatcher": "$gcc"
+        }
+    ]
+}

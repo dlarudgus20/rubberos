@@ -8,8 +8,8 @@
 #define memcmp(lhs, rhs, count) __builtin_memcmp(lhs, rhs, count)
 
 inline void* memchr(const void* ptr, int ch, size_t count) {
-    for (const char* p = ptr; count-- > 0 && *p != ch; p++) {
-        if (*p == ch) {
+    for (const char* p = ptr; count-- > 0; p++) {
+        if ((unsigned char)*p == (unsigned char)ch) {
             return (void*)p;
         }
     }
@@ -21,8 +21,8 @@ inline void* memchr(const void* ptr, int ch, size_t count) {
 #endif
 
 inline void* memchr_not(const void* ptr, int ch, size_t count) {
-    for (const char* p = ptr; count-- > 0 && *p != ch; p++) {
-        if (*p != ch) {
+    for (const char* p = ptr; count-- > 0; p++) {
+        if ((unsigned char)*p != (unsigned char)ch) {
             return (void*)p;
         }
     }

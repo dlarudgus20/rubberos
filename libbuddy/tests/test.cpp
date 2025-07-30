@@ -44,12 +44,12 @@ TEST(buddy_test, create) {
     }
     const size_t metalen = level * 16 + bitlen;
 
-    EXPECT_EQ(buddy->start_addr, begin);
-    EXPECT_EQ(buddy->total_len, len);
-    EXPECT_EQ(buddy->metadata_len, metalen);
-    EXPECT_EQ(buddy->data_offset, BUDDY_UNIT);
-    EXPECT_EQ(buddy->units, units);
-    EXPECT_EQ(buddy->levels, level);
+    ASSERT_EQ(buddy->start_addr, begin);
+    ASSERT_EQ(buddy->total_len, len);
+    ASSERT_EQ(buddy->metadata_len, metalen);
+    ASSERT_EQ(buddy->data_offset, BUDDY_UNIT);
+    ASSERT_EQ(buddy->units, units);
+    ASSERT_EQ(buddy->levels, level);
 }
 
 TEST(buddy_test, seq) {
@@ -59,7 +59,7 @@ TEST(buddy_test, seq) {
         const size_t block_count = buddy->units >> level;
         const size_t size = BUDDY_UNIT << level;
 
-        EXPECT_EQ(buddy->used, 0);
+        ASSERT_EQ(buddy->used, 0);
 
         for (size_t index = 0; index < block_count; index++) {
             if (const uintptr_t addr = buddy_alloc(buddy.get(), size - 1)) {
@@ -69,18 +69,18 @@ TEST(buddy_test, seq) {
                     slice[i] = (uint32_t)i;
                 }
                 for (size_t i = 0; i < count; i++) {
-                    EXPECT_EQ(slice[i], (uint32_t)i);
+                    ASSERT_EQ(slice[i], (uint32_t)i);
                 }
             }
         }
 
-        EXPECT_EQ(buddy->used, (buddy->total_len - buddy->data_offset) / size * size);
+        ASSERT_EQ(buddy->used, (buddy->total_len - buddy->data_offset) / size * size);
 
         for (size_t index = 0; index < block_count; index++) {
             const uintptr_t addr = buddy->start_addr + buddy->data_offset + size * index;
             buddy_dealloc(buddy.get(), addr + 1, size - 1);
         }
 
-        EXPECT_EQ(buddy->used, 0);
+        ASSERT_EQ(buddy->used, 0);
     }
 }

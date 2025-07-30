@@ -20,6 +20,6 @@ struct slab_allocator {
     size_t object_align;
 };
 
-void slab_init(struct slab_allocator* slab, size_t object_size, size_t object_align, const struct slab_page_allocator* pa);
+void slab_init(struct slab_allocator* slab, size_t size, size_t align, const struct slab_page_allocator* pa);
 void* slab_alloc(struct slab_allocator* slab);
 void slab_dealloc(struct slab_allocator* slab, void* ptr);

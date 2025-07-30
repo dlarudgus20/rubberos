@@ -10,6 +10,14 @@ struct linkedlist_link* linkedlist_nil(struct linkedlist* list) {
     return &list->dummy;
 }
 
+bool linkedlist_is_nil(struct linkedlist* list, struct linkedlist_link* link) {
+    return link == &list->dummy;
+}
+
+bool linkedlist_is_empty(struct linkedlist* list) {
+    return list->dummy.prev == list->dummy.next;
+}
+
 struct linkedlist_link* linkedlist_head(struct linkedlist* list) {
     return list->dummy.next;
 }

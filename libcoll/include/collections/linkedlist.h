@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 struct linkedlist_link {
     struct linkedlist_link* prev;
     struct linkedlist_link* next;
@@ -11,6 +13,8 @@ struct linkedlist {
 
 void linkedlist_init(struct linkedlist* list);
 struct linkedlist_link* linkedlist_nil(struct linkedlist* list);
+bool linkedlist_is_nil(struct linkedlist* list, struct linkedlist_link* link);
+bool linkedlist_is_empty(struct linkedlist* list);
 struct linkedlist_link* linkedlist_head(struct linkedlist* list);
 struct linkedlist_link* linkedlist_tail(struct linkedlist* list);
 

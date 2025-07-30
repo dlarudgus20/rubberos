@@ -1,0 +1,97 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Attach to Qemu (debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/kernel/bin/debug/kernel.elf",
+            "cwd": "${workspaceRoot}",
+            "miDebuggerServerAddress": "localhost:1234",
+            "setupCommands": [
+                {
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Attach to Qemu (release)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/kernel/bin/release/kernel.elf",
+            "cwd": "${workspaceRoot}",
+            "miDebuggerServerAddress": "localhost:1234",
+            "setupCommands": [
+                {
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Launch Test for libbuddy (debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/libbuddy/bin/host/debug/tests/test",
+            "preLaunchTask": "Build Test for libbuddy (debug)"
+        },
+        {
+            "name": "Launch Test for libbuddy (release)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/libbuddy/bin/host/release/tests/test",
+            "preLaunchTask": "Build Test for libbuddy (release)"
+        },
+        {
+            "name": "Launch Test for libcoll (debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/libcoll/bin/host/debug/tests/test",
+            "preLaunchTask": "Build Test for libcoll (debug)"
+        },
+        {
+            "name": "Launch Test for libcoll (release)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/libcoll/bin/host/release/tests/test",
+            "preLaunchTask": "Build Test for libcoll (release)"
+        },
+        {
+            "name": "Launch Test for libfreec (debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/libfreec/bin/host/debug/tests/test",
+            "preLaunchTask": "Build Test for libfreec (debug)"
+        },
+        {
+            "name": "Launch Test for libfreec (release)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/libfreec/bin/host/release/tests/test",
+            "preLaunchTask": "Build Test for libfreec (release)"
+        },
+        {
+            "name": "Launch Test for libslab (debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/libslab/bin/host/debug/tests/test",
+            "preLaunchTask": "Build Test for libslab (debug)"
+        },
+        {
+            "name": "Launch Test for libslab (release)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/libslab/bin/host/release/tests/test",
+            "preLaunchTask": "Build Test for libslab (release)"
+        }
+    ]
+}
