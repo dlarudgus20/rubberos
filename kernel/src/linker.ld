@@ -6,7 +6,7 @@ SECTIONS
     . = 0x200000;
     __higher_half_displacement = 0xffff800000000000 - .;
 
-    .startup ALIGN(16) :
+    .startup ALIGN(4K) :
     {
         KEEP(*(.multiboot))
         KEEP(*(.startup))
@@ -20,13 +20,13 @@ SECTIONS
         *(.stub .text.* .gnu.linkonce.t.*)
     }
 
-    .rodata ALIGN(16) : AT(ADDR(.rodata) - __higher_half_displacement)
+    .rodata ALIGN(4K) : AT(ADDR(.rodata) - __higher_half_displacement)
     {
         *(.rodata .rodata.* .gnu.linkonce.r.*)
         *(.rodata1)
     }
 
-    .data ALIGN(16) : AT(ADDR(.data) - __higher_half_displacement)
+    .data ALIGN(4K) : AT(ADDR(.data) - __higher_half_displacement)
     {
         *(.data .data.* .gnu.linkonce.d.*)
         *(.data1)
