@@ -96,7 +96,7 @@ distclean: cleanimpl clean_dirs
 
 ifeq ($(TARGET_TYPE), executable)
 $(TARGET): $(LD_SCRIPT) $(C_OBJECTS) $(AS_OBJECTS) $(LIBRARIES) | $(DIRS)
-	$(TOOLSET_GCC) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(C_OBJECTS) $(AS_OBJECTS) $(LIBRARIES) \
+	$(TOOLSET_GCC) $(CFLAGS) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(C_OBJECTS) $(AS_OBJECTS) $(LIBRARIES) \
 		-Xlinker -Map=$(DIR_OBJ)/$(TARGET_NAME).map
 	$(TOOLSET_NM) $(NM_FLAGS) $@ > $(DIR_OBJ)/$(TARGET_NAME).nm
 	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ)/$(TARGET_NAME).total.disasm
@@ -108,6 +108,7 @@ $(TARGET): $(LD_SCRIPT) $(C_OBJECTS) $(AS_OBJECTS) $(LIBRARIES) | $(DIRS)
 else ifeq ($(TARGET_TYPE), static-lib)
 $(TARGET): $(C_OBJECTS) $(AS_OBJECTS) | $(DIRS)
 	$(TOOLSET_AR) rcs $@ $^
+	$(TOOLSET_NM) $(NM_FLAGS) $@ > $(DIR_OBJ)/$(TARGET_NAME).nm
 endif
 
 $(DIR_OBJ)/%.c.o: $(DIR_SRC)/%.c | $(DIRS)
@@ -133,7 +134,7 @@ $(DIR_DEP_TEST)/%.cpp.d: $(DIR_TEST)/%.cpp | $(DIRS)
 		| sed 's@\($(DIR_OBJ_TEST)/$*.cpp.o\)[ :]*@\1 $@ : @g' > $@
 
 $(TEST_EXECUTABLE): $(TEST_OBJECTS) $(TARGET) $(LIBRARIES) | $(DIRS)
-	$(TEST_GXX) $(TEST_LDFLAGS) -o $@ $(TEST_OBJECTS) $(TARGET) $(LIBRARIES) -lgtest -lgtest_main \
+	$(TEST_GXX) $(TEST_CXXFLAGS) $(TEST_LDFLAGS) -o $@ $(TEST_OBJECTS) $(TARGET) $(LIBRARIES) -lgtest -lgtest_main \
 		-Xlinker -Map=$(DIR_OBJ_TEST)/test.map
 	$(TOOLSET_NM) $(NM_FLAGS) $@ > $(DIR_OBJ_TEST)/test.nm
 	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ_TEST)/test.total.disasm

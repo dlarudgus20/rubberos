@@ -21,7 +21,7 @@ TOOLSET_QEMU			?= qemu-system-x86_64
 TOOLSET_BOCHS			?= bochs
 TOOLSET_GRUB_MKRESCUE	?= grub-mkrescue
 
-CFLAGS += -ffreestanding -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2 \
+CFLAGS += -ggdb3 -ffreestanding -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2 \
 	-std=c17 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
 NASMFLAGS += -f elf64
 LDFLAGS += -ffreestanding -nostdlib -Xlinker --gc-sections
@@ -36,19 +36,19 @@ TOOLSET_OBJDUMP			?= objdump
 TOOLSET_NM				?= gcc-nm
 TOOLSET_GDB				?= gdb
 
-CFLAGS += -std=c17 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
+CFLAGS += -ggdb3 -std=c17 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
 NASMFLAGS +=
 LDFLAGS +=
 
 TEST_GXX				?= g++
 
-TEST_CXXFLAGS += -std=c++20 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
+TEST_CXXFLAGS += -masm=intel -ggdb3 -std=c++20 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
 TEST_LDFLAGS +=
 
 ifeq ($(CONFIG), debug)
-TEST_CXXFLAGS += -DDEBUG -ggdb
+TEST_CXXFLAGS += -DDEBUG
 else ifeq ($(CONFIG), release)
-TEST_CXXFLAGS += -DNDEBUG -O3 -ggdb
+TEST_CXXFLAGS += -DNDEBUG -O3 -flto=auto -fno-fat-lto-objects
 endif
 
 else
@@ -56,9 +56,9 @@ $(error [conf.mk] '$(TOOLSET)': unknown toolset.)
 endif
 
 ifeq ($(CONFIG), debug)
-CFLAGS += -DDEBUG -ggdb
+CFLAGS += -DDEBUG
 else ifeq ($(CONFIG), release)
-CFLAGS += -DNDEBUG -O3 -flto -ggdb
+CFLAGS += -DNDEBUG -O3 -flto=auto -fno-fat-lto-objects
 endif
 
 CFLAGS += -masm=intel -iquote include

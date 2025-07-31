@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdnoreturn.h>
 
+#include <freec/stdio.h>
 #include <freec/assert.h>
 
 void out8(uint16_t port, uint8_t data) {
@@ -31,69 +32,16 @@ void putchar_serial(char ch) {
     out8(0x3f8, ch);
 }
 
-void tohex(char* buf, uint32_t val) {
-    const char* str = "0123456789ABCDEF";
-    for (int i = 7; i >= 0; i--) {
-        buf[i] = str[val & 0xf];
-        val >>= 4;
+void printf_serial(const char *format, ...)
+{
+    va_list va;
+    char buf[4096];
+    va_start(va, format);
+    vsnprintf(buf, sizeof(buf), format, va);
+    for (int i = 0; buf[i] != 0; i++) {
+        putchar_serial(buf[i]);
     }
-}
-
-void todec(char* buf, uint32_t val) {
-    int len = 0;
-    for (; val % 10 != 0; len++, val /= 10) {
-        buf[len] = (val % 10) + '0';
-    }
-    buf[len] = 0;
-    for (int i = 0; i < len / 2; i++) {
-        char tmp = buf[i];
-        buf[i] = buf[len - i - 1];
-        buf[len - i - 1] = tmp;
-    }
-}
-
-void printf_serial(const char* fmt, ...) {
-    va_list args;
-    char buf[11];
-    va_start(args, fmt);
-    for (;* fmt != 0; fmt++) {
-        switch (*fmt) {
-            case '%':
-                switch (*(++fmt)) {
-                    case 0:
-                        putchar_serial('%');
-                        goto end;
-                    case 's':
-                        for (const char* str = va_arg(args, const char*);* str != 0; str++) {
-                            putchar_serial(*str);
-                        }
-                        continue;
-                    case 'd':
-                        todec(buf, va_arg(args, uint32_t));
-                        for (int i = 0; buf[i] != 0; i++) {
-                            putchar_serial(buf[i]);
-                        }
-                        continue;
-                    case 'x':
-                        tohex(buf, va_arg(args, uint32_t));
-                        putchar_serial('0');
-                        putchar_serial('x');
-                        for (int i = 0; i < 8; i++) {
-                            putchar_serial(buf[i]);
-                        }
-                        continue;
-                    default:
-                        putchar_serial('%');
-                        putchar_serial(*fmt);
-                        continue;
-                }
-            default:
-                putchar_serial(*fmt);
-                break;
-        }
-    }
-end:
-    va_end(args);
+    va_end(va);
 }
 
 void kmain(volatile int* video, int width, int height) {
@@ -107,7 +55,7 @@ void kmain(volatile int* video, int width, int height) {
             video[x + y * width] = color;
         }
     }
-    printf_serial("1+2=%d (%x), 1*2=%d (%x)\n", 1+2, 1+2, 1*2, 1*2);
+    printf_serial("1+2=%d (0x%04x), 1*2=%d (0x%04x)\n", 1+2, 1+2, 1*2, 1*2);
     while (1) __asm__ __volatile__ ("hlt");
 }
 

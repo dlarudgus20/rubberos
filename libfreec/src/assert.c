@@ -10,4 +10,6 @@ noreturn void panic_impl(const char *msg, const char *file, const char *func, un
     abort();
 }
 
+#else
+typedef int dummy; // ISO C forbids an empty translation unit
 #endif
