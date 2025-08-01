@@ -8,7 +8,7 @@ C_OBJECTS := $(patsubst $(DIR_SRC)/%.c, $(DIR_OBJ)/%.c.o, $(C_SOURCES))
 AS_SOURCES := $(foreach dir, $(SRC_ALLDIRS), $(wildcard $(dir)/*.asm))
 AS_OBJECTS := $(patsubst $(DIR_SRC)/%.asm, $(DIR_OBJ)/%.asm.o, $(AS_SOURCES))
 
-DEPENDENCIES += $(patsubst $(DIR_SRC)/%.c, $(DIR_DEP)/%.c.d, $(C_SOURCES))
+C_DEPS += $(patsubst $(DIR_SRC)/%.c, $(DIR_DEP)/%.c.d, $(C_SOURCES))
 
 ifdef IS_TEST_ON
 TEST_ALLDIRS := $(DIR_TEST) $(foreach sub, $(TEST_SUBDIRS), $(DIR_TEST)/$(sub))
@@ -114,15 +114,12 @@ $(TARGET): $(C_OBJECTS) $(AS_OBJECTS) | $(DIRS)
 	$(TOOLSET_NM) $(NM_FLAGS) $@ > $(DIR_OBJ)/$(TARGET_NAME).nm
 endif
 
-$(DIR_OBJ)/%.c.o: $(DIR_SRC)/%.c | $(DIRS)
+$(DIR_OBJ)/%.c.o: $(DIR_SRC)/%.c $(DIR_DEP)/%.c.d | $(DIRS)
 	mkdir -p $(dir $@)
-	$(TOOLSET_GCC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
+	mkdir -p $(dir $(DIR_DEP)/$*.cpp.d)
+	$(TOOLSET_GCC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@ \
+		-MT $@ -MMD -MP -MF $(DIR_DEP)/$*.c.d
 	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ)/$*.c.dump
-
-$(DIR_DEP)/%.c.d: $(DIR_SRC)/%.c | $(DIRS)
-	mkdir -p $(dir $@)
-	$(TOOLSET_GCC) $(CFLAGS) $(INCLUDE_FLAGS) $< -MM -MT $(DIR_OBJ)/$*.c.o \
-		| sed 's@\($(DIR_OBJ)/$*.c.o\)[ :]*@\1 $@ : @g' > $@
 
 $(DIR_OBJ)/%.asm.o: $(DIR_SRC)/%.asm | $(DIRS)
 	mkdir -p $(dir $@)
@@ -131,15 +128,12 @@ $(DIR_OBJ)/%.asm.o: $(DIR_SRC)/%.asm | $(DIRS)
 
 ifdef IS_TEST_ON
 
-$(DIR_OBJ_TEST)/%.cpp.o: $(DIR_TEST)/%.cpp | $(DIRS)
+$(DIR_OBJ_TEST)/%.cpp.o: $(DIR_TEST)/%.cpp $(DIR_DEP_TEST)/%.cpp.d | $(DIRS)
 	mkdir -p $(dir $@)
-	$(TEST_GXX) $(TEST_CXXFLAGS) $(TEST_INCLUDE_FLAGS) $(INCLUDE_FLAGS) -c $< -o $@
+	mkdir -p $(dir $(DIR_DEP_TEST)/$*.cpp.d)
+	$(TEST_GXX) $(TEST_CXXFLAGS) $(TEST_INCLUDE_FLAGS) $(INCLUDE_FLAGS) -c $< -o $@ \
+		-MT $@ -MMD -MP -MF $(DIR_DEP_TEST)/$*.cpp.d
 	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ_TEST)/$*.cpp.dump
-
-$(DIR_DEP_TEST)/%.cpp.d: $(DIR_TEST)/%.cpp | $(DIRS)
-	mkdir -p $(dir $@)
-	$(TEST_GXX) $(TEST_CXXFLAGS) $(TEST_INCLUDE_FLAGS) $(INCLUDE_FLAGS) $< -MM -MT $(DIR_OBJ_TEST)/$*.cpp.o \
-		| sed 's@\($(DIR_OBJ_TEST)/$*.cpp.o\)[ :]*@\1 $@ : @g' > $@
 
 $(TEST_EXECUTABLE): $(TEST_OBJECTS) $(TARGET) $(LIBRARIES) | $(DIRS)
 	$(TEST_GXX) $(TEST_CXXFLAGS) $(TEST_LDFLAGS) -o $@ $(TEST_OBJECTS) $(TARGET) $(LIBRARIES) -lgtest -lgtest_main \
@@ -154,9 +148,12 @@ $(REFS_LIBS): .FORCE
 		make build -C ../$$dir || exit 1; \
 	done
 
-ifeq ($(filter $(subst build, , $(PHONY_TARGETS)), $(MAKECMDGOALS)), )
-include $(DEPENDENCIES)
+$(C_DEPS):
+
+include $(C_DEPS)
+
 ifdef IS_TEST_ON
+$(TEST_DEPS):
+
 include $(TEST_DEPS)
-endif
 endif
