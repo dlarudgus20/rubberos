@@ -11,3 +11,7 @@ inline uint8_t in8(uint16_t port) {
     __asm__ __volatile__ ( "in al, dx" : "=a"(data) : "Nd"(port) : "memory" );
     return data;
 }
+
+inline void wait_for_int(void) {
+    __asm__ __volatile__ ( "hlt" );
+}
