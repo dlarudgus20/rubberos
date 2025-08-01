@@ -13,12 +13,12 @@ logical address                              physical address            descrip
 [0x00000000 00200000 ~ 0x00007fff ffffffff]   <    runtime binding    >   dynamic memory
 
 [0xffff8000 00000000 ~ 0xffffffff ffffffff]               -               kernel area
-    [0xffff8000 00000000 ~ 0xffff8000 00400000)   [0x00200000 ~ 0x00600000)   kernel
-    [0xffff8000 00400000 ~ 0xffff8000 0f000000)               -               -
-    [0xffff8000 0f000000 ~ 0xffff8000 0f200000)   [0x00600000 ~ 0x00800000)   kernel stack
-    [0xffff8000 0f200000 ~ 0xffff8000 1fe00000)               -               -
-    [0xffff8000 1fe00000 ~ 0xffff8000 20000000)   [0x00000000 ~ 0x00200000)   lower 2MB memory
-    [0xffff8000 20000000 ~ 0xffffffff ffffffff)   <    runtime binding    >   memory for I/O mapping
+    [0xffff8000 00000000 ~ 0xffffff80 ffffffff)               -               -
+    [0xffffff80 00000000 ~ 0xffffffff 00000000)   <    runtime binding    >   memory for I/O mapping
+    [0xffffffff 80000000 ~ 0xffffffff 80400000)   [0x00200000 ~ 0x00600000)   kernel
+    [0xffffffff 80400000 ~ 0xffffffff 8f000000)               -               -
+    [0xffffffff 8f000000 ~ 0xffffffff 8f200000)   [0x00600000 ~ 0x00800000)   kernel stack
+    [0xffffffff 8f200000 ~ 0xffffffff ffffffff)               -               -
 
 Virtual Memory (User)
 

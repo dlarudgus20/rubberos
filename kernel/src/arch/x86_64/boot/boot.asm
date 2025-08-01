@@ -1,9 +1,8 @@
 %define MAGIC 0xe85250d6
+%define DISPLACEMENT (0xffffffff80000000 - 0x00200000)
 
-extern __higher_half_displacement
-extern __tmp_page
-extern __stack_top_lba
 extern __stack_top
+extern __stack_top_lba
 extern kmain_arch
 
 section .multiboot
@@ -19,10 +18,18 @@ dd -(MAGIC + .end - multiboot)
 align 8, db 0
 dw 5, 0
 dd 20, 1024, 768, 32
-; end
+; terminating tag
 align 8, db 0
-dd 0, 0
+dd 0, 8
 .end:
+
+section .bss
+
+align 4096
+tmp_page: resb 0x6000
+
+align 16
+bootinfo: resb 0x1000
 
 section .startup alloc exec progbits
 
@@ -34,6 +41,17 @@ _start:
 
     cmp eax, 0x36d76289 ; check multiboot2 bootloader
     jne panic
+
+    cld
+    mov esi, ebx
+    mov edi, bootinfo - DISPLACEMENT
+    mov ecx, [ebx]
+    mov eax, 0x1000
+    cmp ecx, eax
+    cmova ecx, eax
+    add ecx, 3
+    shr ecx, 2
+    rep movsd
 
     mov ecx, ebx
     add ecx, [ebx]
@@ -93,39 +111,40 @@ init_long:
 
     ; set up paging
     ; pml4
-    mov ebx, __tmp_page
-    mov eax, __tmp_page + 0x1000    ; 0000 0*
+    mov edi, tmp_page - DISPLACEMENT
+    mov ebx, edi
+    lea eax, [edi + 0x1000]    ; 0000 0*
     or eax, 3
     mov [ebx], eax
-    mov eax, __tmp_page + 0x2000    ; ffff 8*
+    lea eax, [edi + 0x2000]    ; ffff ff8*
     or eax, 3
-    mov [ebx+0x800], eax
+    mov [ebx+0xff8], eax
     ; pdpt (lower)
-    mov ebx, __tmp_page + 0x1000
-    mov eax, __tmp_page + 0x3000
+    lea ebx, [edi + 0x1000]
+    lea eax, [edi + 0x3000]
     or eax, 3
     mov [ebx], eax
     ; pdpt (higher)
-    mov ebx, __tmp_page + 0x2000
-    mov eax, __tmp_page + 0x4000    ; ffff 8000
+    lea ebx, [edi + 0x2000]
+    lea eax, [edi + 0x4000]    ; ffff ffff 8*
+    or eax, 3
+    mov [ebx+0xff0], eax
+    lea eax, [edi + 0x5000]    ; ffff ff80 __*
     or eax, 3
     mov [ebx], eax
-    mov eax, __tmp_page + 0x5000    ; ffff 8001 __*
-    or eax, 3
-    mov [ebx+4*8], eax
     ; pdt (lower)
-    mov ebx, __tmp_page + 0x3000
+    lea ebx, [edi + 0x3000]
     mov dword [ebx+0x08], 0x00200083
     mov dword [ebx+0x10], 0x00400083
     mov dword [ebx+0x18], 0x00600083
     ; pdt (kernel)
-    mov ebx, __tmp_page + 0x4000
+    lea ebx, [edi + 0x4000]
     mov dword [ebx], 0x00200083     ; kernel 4mb
     mov dword [ebx+8], 0x00400083
     mov dword [ebx+0x78*8], 0x00600083 ; stack
     mov dword [ebx+0x80*8], 0x00800083 ; stack
     ; pdt (fb)
-    mov ebx, __tmp_page + 0x5000
+    lea ebx, [edi + 0x5000]
     mov eax, [esp]
     and eax, 0xffe00000
     or eax, 0x83
@@ -139,8 +158,7 @@ init_long:
     jnz .pdt_loop
 .end_pdt:
 
-    mov eax, __tmp_page
-    mov cr3, eax
+    mov cr3, edi
     mov eax, cr4
     or eax, 1 << 5
     mov cr4, eax
@@ -176,11 +194,12 @@ lm_start:
     xor rdi, rdi
     mov ebx, [rsp-12]
     and rdi, 0x1fffff
-    mov rax, 0xffff800100000000
+    mov rax, 0xffffff8000000000
     add rdi, rax
 
     mov esi, [rsp-8]
     mov edx, [rsp-4]
+    mov rcx, bootinfo
     mov rax, kmain_arch
     call rax
 

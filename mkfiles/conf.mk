@@ -21,7 +21,7 @@ TOOLSET_QEMU			?= qemu-system-x86_64
 TOOLSET_BOCHS			?= bochs
 TOOLSET_GRUB_MKRESCUE	?= grub-mkrescue
 
-CFLAGS += -ggdb3 -ffreestanding -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2 \
+CFLAGS += -ggdb3 -ffreestanding -mcmodel=kernel -mno-red-zone -mno-mmx -mno-sse -mno-sse2 \
 	-std=c17 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
 NASMFLAGS += -f elf64
 LDFLAGS += -ffreestanding -nostdlib -Xlinker --gc-sections

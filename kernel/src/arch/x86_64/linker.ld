@@ -4,7 +4,7 @@ ENTRY(_start)
 SECTIONS
 {
     . = 0x200000;
-    __higher_half_displacement = 0xffff800000000000 - .;
+    __higher_half_displacement = 0xffffffff80000000 - .;
 
     .startup ALIGN(4K) :
     {
@@ -36,12 +36,9 @@ SECTIONS
     {
         *(COMMON)
         *(.bss .bss.* .gnu.linkonce.b.*)
-        . = ALIGN(4K);
-        __tmp_page = . - __higher_half_displacement;
-        . += 0x13000;
     }
 
-    . = 0xffff80000f000000;
+    . = 0xffffffff8f000000;
     __stack_bottom = .;
     __stack_bottom_lba = 0x00600000;
     __stack_displacement = . - __stack_bottom_lba;
