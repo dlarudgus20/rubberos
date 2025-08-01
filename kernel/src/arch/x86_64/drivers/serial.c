@@ -1,9 +1,8 @@
-#include "../../../drivers/serial.h"
-
 #include <stdarg.h>
 #include <freec/stdio.h>
 
-#include "../inst.h"
+#include "drivers/serial.h"
+#include "arch/inst.h"
 
 void serial_init(void) {
     out8(0x3f8 + 1, 0x00);

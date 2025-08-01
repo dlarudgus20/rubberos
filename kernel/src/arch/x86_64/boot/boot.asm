@@ -28,8 +28,18 @@ section .bss
 align 4096
 tmp_page: resb 0x6000
 
+%define BOOTINFO_CMD_LEN 256
+%define BOOTINFO_MMAP_LEN 128
+
 align 16
-bootinfo: resb 0x1000
+global g_bootinfo_arch
+g_bootinfo_arch:
+bootinfo_cmd: resb BOOTINFO_CMD_LEN
+bootinfo_ptr_mmap: resb 8
+bootinfo_fb: resb 24
+
+align 8
+bootinfo_mmap: resb 8 + 24 * BOOTINFO_MMAP_LEN
 
 section .startup alloc exec progbits
 
@@ -37,41 +47,87 @@ bits 32
 global _start
 _start:
     cli
+    cld
     mov esp, __stack_top_lba
 
-    cmp eax, 0x36d76289 ; check multiboot2 bootloader
+    ; check multiboot2 bootloader
+    cmp eax, 0x36d76289
     jne panic
 
-    cld
-    mov esi, ebx
-    mov edi, bootinfo - DISPLACEMENT
-    mov ecx, [ebx]
-    mov eax, 0x1000
-    cmp ecx, eax
-    cmova ecx, eax
-    add ecx, 3
-    shr ecx, 2
-    rep movsd
-
-    mov ecx, ebx
-    add ecx, [ebx]
+    ; copy required multiboot2 boot information
+    mov ebp, ebx
+    add ebp, [ebx]
     add ebx, 8
-.loop:
-    cmp dword [ebx], 8
-    jne .cont
-    push dword [ebx+24] ; fb_height
-    push dword [ebx+20] ; fb_width
-    push dword [ebx+8]  ; fb_addr
-    jmp init_long
-.cont:
+mbi_loop:
+    mov eax, [ebx]
+    cmp eax, 1  ; cmd
+    je mbi_cmd
+    cmp eax, 6  ; memmap
+    je mbi_mmap
+    cmp eax, 8  ; framebuffer
+    je mbi_fb
+
+mbi_cont:
     add ebx, [ebx+4]
     add ebx, 7
-    shr ebx, 3
-    shl ebx, 3
-    cmp ebx, ecx
-    jb .loop
+    and ebx, ~7
+    cmp ebx, ebp
+    jb mbi_loop
+    jmp mbi_done
 
-    jmp panic
+mbi_cmd:
+    lea esi, [ebx+8]    ; cmd
+    mov edi, bootinfo_cmd - DISPLACEMENT
+    mov ecx, [ebx+4]    ; size
+    sub ecx, 8
+    mov eax, BOOTINFO_CMD_LEN - 1
+    cmp ecx, eax
+    cmovg ecx, eax
+    xor edx, edx
+.loop:
+    cmp edx, ecx
+    jge mbi_cont
+    lodsb
+    test al, al
+    jz mbi_cont
+    stosb
+    inc edx
+    jmp .loop
+
+mbi_mmap:
+    mov edi, bootinfo_mmap - DISPLACEMENT + 8
+    lea esi, [ebx+16]   ; entries
+    mov edx, [ebx+4]    ; size
+    add edx, ebx        ; end
+    xor ecx, ecx
+.loop:
+    mov eax, esi
+    add eax, [ebx+8]    ; entry size
+    cmp eax, edx
+    jae .done
+    times 6 movsd
+    mov esi, eax
+    inc ecx
+    cmp ecx, BOOTINFO_MMAP_LEN
+    jb .loop
+.done:
+    mov dword [bootinfo_mmap - DISPLACEMENT], ecx
+    jmp mbi_cont
+
+mbi_fb:
+    mov edi, bootinfo_fb - DISPLACEMENT
+    mov eax, [ebx+8]    ; fb_addr
+    mov [edi], eax
+    mov eax, [ebx+16]   ; fb_pitch
+    mov [edi+4], eax
+    mov eax, [ebx+20]   ; fb_width
+    mov [edi+8], eax
+    mov eax, [ebx+24]   ; fb_height
+    mov [edi+12], eax
+    mov ax, [ebx+28]    ; fb_bpp / fb_type
+    mov [edi+16], ax
+    jmp mbi_cont
+mbi_done:
 
 init_long:
     lgdt [gdtr]
@@ -145,7 +201,7 @@ init_long:
     mov dword [ebx+0x80*8], 0x00800083 ; stack
     ; pdt (fb)
     lea ebx, [edi + 0x5000]
-    mov eax, [esp]
+    mov eax, [bootinfo_fb - DISPLACEMENT]
     and eax, 0xffe00000
     or eax, 0x83
     mov ecx, 512
@@ -191,15 +247,15 @@ lm_start:
     mov rbp, rsp
     cld
 
+    mov rax, bootinfo_mmap
+    mov [bootinfo_ptr_mmap], rax
+
     xor rdi, rdi
-    mov ebx, [rsp-12]
+    mov ebx, [bootinfo_fb]
     and rdi, 0x1fffff
     mov rax, 0xffffff8000000000
     add rdi, rax
 
-    mov esi, [rsp-8]
-    mov edx, [rsp-4]
-    mov rcx, bootinfo
     mov rax, kmain_arch
     call rax
 

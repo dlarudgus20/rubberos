@@ -1,8 +1,8 @@
-#include "serial.h"
-
 #include <stdarg.h>
 #include <freec/stdio.h>
 #include <freec/assert.h>
+
+#include "drivers/serial.h"
 
 void serial_printf(const char *format, ...) {
     va_list va;
