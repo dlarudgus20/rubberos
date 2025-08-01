@@ -1,15 +1,18 @@
 CODE_SECTIONS ?= .text
 
-C_SOURCES := $(wildcard $(DIR_SRC)/*.c)
+SRC_ALLDIRS := $(DIR_SRC) $(foreach sub, $(SRC_SUBDIRS), $(DIR_SRC)/$(sub))
+
+C_SOURCES := $(foreach dir, $(SRC_ALLDIRS), $(wildcard $(dir)/*.c))
 C_OBJECTS := $(patsubst $(DIR_SRC)/%.c, $(DIR_OBJ)/%.c.o, $(C_SOURCES))
 
-AS_SOURCES := $(wildcard $(DIR_SRC)/*.asm)
+AS_SOURCES := $(foreach dir, $(SRC_ALLDIRS), $(wildcard $(dir)/*.asm))
 AS_OBJECTS := $(patsubst $(DIR_SRC)/%.asm, $(DIR_OBJ)/%.asm.o, $(AS_SOURCES))
 
 DEPENDENCIES += $(patsubst $(DIR_SRC)/%.c, $(DIR_DEP)/%.c.d, $(C_SOURCES))
 
 ifdef IS_TEST_ON
-TEST_SOURCES := $(wildcard $(DIR_TEST)/*.cpp)
+TEST_ALLDIRS := $(DIR_TEST) $(foreach sub, $(TEST_SUBDIRS), $(DIR_TEST)/$(sub))
+TEST_SOURCES := $(foreach dir, $(TEST_ALLDIRS), $(wildcard $(dir)/*.cpp))
 TEST_OBJECTS := $(patsubst $(DIR_TEST)/%.cpp, $(DIR_OBJ_TEST)/%.cpp.o, $(TEST_SOURCES))
 TEST_DEPS := $(patsubst $(DIR_TEST)/%.cpp, $(DIR_DEP_TEST)/%.cpp.d, $(TEST_SOURCES))
 TEST_EXECUTABLE := $(DIR_BIN_TEST)/test
@@ -112,24 +115,29 @@ $(TARGET): $(C_OBJECTS) $(AS_OBJECTS) | $(DIRS)
 endif
 
 $(DIR_OBJ)/%.c.o: $(DIR_SRC)/%.c | $(DIRS)
+	mkdir -p $(dir $@)
 	$(TOOLSET_GCC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
 	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ)/$*.c.dump
 
 $(DIR_DEP)/%.c.d: $(DIR_SRC)/%.c | $(DIRS)
+	mkdir -p $(dir $@)
 	$(TOOLSET_GCC) $(CFLAGS) $(INCLUDE_FLAGS) $< -MM -MT $(DIR_OBJ)/$*.c.o \
 		| sed 's@\($(DIR_OBJ)/$*.c.o\)[ :]*@\1 $@ : @g' > $@
 
 $(DIR_OBJ)/%.asm.o: $(DIR_SRC)/%.asm | $(DIRS)
+	mkdir -p $(dir $@)
 	$(TOOLSET_NASM) $(NASMFLAGS) $< -o $@ -l $(DIR_OBJ)/$*.asm.lst
 	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ)/$*.asm.dump
 
 ifdef IS_TEST_ON
 
 $(DIR_OBJ_TEST)/%.cpp.o: $(DIR_TEST)/%.cpp | $(DIRS)
+	mkdir -p $(dir $@)
 	$(TEST_GXX) $(TEST_CXXFLAGS) $(TEST_INCLUDE_FLAGS) $(INCLUDE_FLAGS) -c $< -o $@
 	$(TOOLSET_OBJDUMP) $(OBJDUMP_FLAGS) -D $@ > $(DIR_OBJ_TEST)/$*.cpp.dump
 
 $(DIR_DEP_TEST)/%.cpp.d: $(DIR_TEST)/%.cpp | $(DIRS)
+	mkdir -p $(dir $@)
 	$(TEST_GXX) $(TEST_CXXFLAGS) $(TEST_INCLUDE_FLAGS) $(INCLUDE_FLAGS) $< -MM -MT $(DIR_OBJ_TEST)/$*.cpp.o \
 		| sed 's@\($(DIR_OBJ_TEST)/$*.cpp.o\)[ :]*@\1 $@ : @g' > $@
 

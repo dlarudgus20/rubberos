@@ -4,7 +4,13 @@ PROJECT_REFS := libfreec libcoll libbuddy libslab
 
 all: build
 
-LD_SCRIPT := src/linker.ld
+ARCH := x86_64
+SUBDIRS := boot drivers
+
+SRC_ARCH := arch/$(ARCH)
+SRC_SUBDIRS := $(SRC_ARCH) $(foreach dir, $(SUBDIRS), $(SRC_ARCH)/$(dir)) $(SUBDIRS)
+
+LD_SCRIPT := src/$(SRC_ARCH)/linker.ld
 
 include ../mkfiles/conf.mk
 include ../mkfiles/rules.mk

@@ -4,7 +4,7 @@ extern __higher_half_displacement
 extern __tmp_page
 extern __stack_top_lba
 extern __stack_top
-extern kmain
+extern kmain_arch
 
 section .multiboot
 
@@ -181,7 +181,7 @@ lm_start:
 
     mov esi, [rsp-8]
     mov edx, [rsp-4]
-    mov rax, kmain
+    mov rax, kmain_arch
     call rax
 
     cli
