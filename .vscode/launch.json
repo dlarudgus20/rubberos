@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Attach to Qemu (debug)",
+            "name": "Launch & Attach to Qemu (debug)",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceRoot}/kernel/bin/debug/kernel.elf",
@@ -17,10 +17,11 @@
                     "text": "-gdb-set disassembly-flavor intel",
                     "ignoreFailures": true
                 }
-            ]
+            ],
+            "preLaunchTask": "Build bootable image & Launch Qemu with GDBStub (debug)"
         },
         {
-            "name": "Attach to Qemu (release)",
+            "name": "Launch & Attach to Qemu (release)",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceRoot}/kernel/bin/release/kernel.elf",
@@ -35,7 +36,8 @@
                     "text": "-gdb-set disassembly-flavor intel",
                     "ignoreFailures": true
                 }
-            ]
+            ],
+            "preLaunchTask": "Build bootable image & Launch Qemu with GDBStub (release)"
         },
         {
             "name": "Launch Test for libbuddy (debug)",

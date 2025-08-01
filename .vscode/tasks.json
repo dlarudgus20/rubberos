@@ -2,6 +2,60 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Build bootable image & Launch Qemu with GDBStub (debug)",
+            "dependsOrder": "sequence",
+            "dependsOn": ["Build bootable image (debug)", "Launch Qemu with GDBStub (debug)"]
+        },
+        {
+            "label": "Build bootable image & Launch Qemu with GDBStub (release)",
+            "dependsOrder": "sequence",
+            "dependsOn": ["Build bootable image (release)", "Launch Qemu with GDBStub (release)"]
+        },
+        {
+            "label": "Launch Qemu with GDBStub (debug)",
+            "type": "shell",
+            "command": "make debug",
+            "options": { "env": { "CONFIG": "debug" } },
+            "isBackground": true,
+            "problemMatcher": {
+                "base": "$gcc",
+                "pattern": [
+                    {
+                        "regexp": ".*",
+                        "file": 1,
+                        "location": 1,
+                        "message": 1
+                    }
+                ],
+                "background": {
+                    "beginsPattern": ".*",
+                    "endsPattern": ".*"
+                }
+            }
+        },
+        {
+            "label": "Launch Qemu with GDBStub (release)",
+            "type": "shell",
+            "command": "make debug",
+            "options": { "env": { "CONFIG": "release" } },
+            "isBackground": true,
+            "problemMatcher": {
+                "base": "$gcc",
+                "pattern": [
+                    {
+                        "regexp": ".*",
+                        "file": 1,
+                        "location": 1,
+                        "message": 1
+                    }
+                ],
+                "background": {
+                    "beginsPattern": ".*",
+                    "endsPattern": ".*"
+                }
+            }
+        },
+        {
             "label": "Build bootable image (debug)",
             "type": "shell",
             "command": "make",
