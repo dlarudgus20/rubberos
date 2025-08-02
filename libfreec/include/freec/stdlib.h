@@ -11,4 +11,6 @@ inline uintptr_t uptrdiv_ceil(uintptr_t x, uintptr_t y) {
     return x / y + (x % y != 0 ? 1 : 0);
 }
 
+void sort(void* ptr, size_t count, size_t size, int (*comp)(const void*, const void*));
+
 #define objectof(ptr, type, member) ((type*)((char*)(ptr) - offsetof(type, member)))

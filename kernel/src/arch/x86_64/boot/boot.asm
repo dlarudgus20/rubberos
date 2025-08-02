@@ -28,18 +28,18 @@ section .bss
 align 4096
 tmp_page: resb 0x6000
 
-%define BOOTINFO_CMD_LEN 256
-%define BOOTINFO_MMAP_LEN 128
+%define BOOTINFO_CMD_MAXLEN 256
+%define BOOTINFO_MMAP_MAXLEN 128
 
 align 16
 global g_bootinfo_arch
 g_bootinfo_arch:
-bootinfo_cmd: resb BOOTINFO_CMD_LEN
+bootinfo_cmd: resb BOOTINFO_CMD_MAXLEN
 bootinfo_ptr_mmap: resb 8
 bootinfo_fb: resb 24
 
 align 8
-bootinfo_mmap: resb 8 + 24 * BOOTINFO_MMAP_LEN
+bootinfo_mmap: resb 8 + 24 * BOOTINFO_MMAP_MAXLEN
 
 section .startup alloc exec progbits
 
@@ -80,7 +80,7 @@ mbi_cmd:
     mov edi, bootinfo_cmd - DISPLACEMENT
     mov ecx, [ebx+4]    ; size
     sub ecx, 8
-    mov eax, BOOTINFO_CMD_LEN - 1
+    mov eax, BOOTINFO_CMD_MAXLEN - 1
     cmp ecx, eax
     cmovg ecx, eax
     xor edx, edx
@@ -108,7 +108,7 @@ mbi_mmap:
     times 6 movsd
     mov esi, eax
     inc ecx
-    cmp ecx, BOOTINFO_MMAP_LEN
+    cmp ecx, BOOTINFO_MMAP_MAXLEN
     jb .loop
 .done:
     mov dword [bootinfo_mmap - DISPLACEMENT], ecx

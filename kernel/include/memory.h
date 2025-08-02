@@ -26,4 +26,6 @@ struct mmap {
     struct mmap_entry entries[];
 };
 
-void mmap_print(void);
+void mmap_init(void);
+void mmap_print_bootinfo(void);
+void mmap_print_dyn(void);

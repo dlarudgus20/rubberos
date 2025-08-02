@@ -5,12 +5,8 @@
 
 static struct bootinfo g_bootinfo;
 
-// boot.asm
-#define BOOTINFO_CMD_LEN 256
-#define BOOTINFO_MMAP_LEN 128
-
 struct bootinfo_arch {
-    char cmd[BOOTINFO_CMD_LEN];
+    char cmd[BOOTINFO_CMD_MAXLEN];
 
     struct mmap* mmap;
 
