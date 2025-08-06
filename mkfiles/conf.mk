@@ -24,7 +24,7 @@ TOOLSET_GRUB_MKRESCUE	?= grub-mkrescue
 CFLAGS += -ggdb3 -ffreestanding -mcmodel=kernel -mno-red-zone -mno-mmx -mno-sse -mno-sse2 \
 	-std=c17 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
 NASMFLAGS += -f elf64
-LDFLAGS += -ffreestanding -nostdlib -Xlinker --gc-sections
+LDFLAGS += -ffreestanding -nostdlib -Wl,--gc-sections -Wl,--fatal-warning
 
 else ifeq ($(TOOLSET), host)
 
@@ -38,12 +38,12 @@ TOOLSET_GDB				?= gdb
 
 CFLAGS += -ggdb3 -std=c17 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
 NASMFLAGS +=
-LDFLAGS +=
+LDFLAGS += -Wl,--fatal-warning
 
 TEST_GXX				?= g++
 
 TEST_CXXFLAGS += -masm=intel -ggdb3 -std=c++20 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
-TEST_LDFLAGS +=
+TEST_LDFLAGS += -Wl,--fatal-warning
 
 ifeq ($(CONFIG), debug)
 TEST_CXXFLAGS += -DDEBUG

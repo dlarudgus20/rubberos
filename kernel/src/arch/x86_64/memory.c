@@ -9,6 +9,9 @@
 
 #define KERNEL_PAGE_FLAG (PAGE_FLAG_PRESENT | PAGE_FLAG_WRITABLE)
 
+extern char __stack_bottom_lba[];
+#define KSTACK_START_PHYS ((uintptr_t)__stack_bottom_lba)
+
 static alignas(PAGE_SIZE) pagetable_t g_pagetable;
 
 const char* mmap_entry_type_str(mmap_entry_type type) {

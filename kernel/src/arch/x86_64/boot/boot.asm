@@ -1,8 +1,10 @@
 %define MAGIC 0xe85250d6
 %define DISPLACEMENT (0xffffffff80000000 - 0x00200000)
 
-extern __stack_top
+%define STACK_TOP 0xffffffff8f200000
+
 extern __stack_top_lba
+extern __stack_bottom_lba
 extern kmain_arch
 
 section .multiboot
@@ -189,12 +191,11 @@ init_long:
     lea ebx, [edi + 0x3000]
     mov dword [ebx+0x08], 0x00200083
     mov dword [ebx+0x10], 0x00400083
-    mov dword [ebx+0x18], 0x00600083
     ; pdt (kernel)
     lea ebx, [edi + 0x4000]
     mov dword [ebx], 0x00200083     ; kernel 4mb
     mov dword [ebx+8], 0x00400083
-    mov dword [ebx+0x78*8], 0x00600083 ; stack
+    mov dword [ebx+0x78*8], __stack_bottom_lba + 0x83 ; stack
 
     mov cr3, edi
     mov eax, cr4
@@ -225,7 +226,7 @@ lm_start:
     mov fs, rax
     mov gs, rax
     mov ss, rax
-    mov rsp, __stack_top
+    mov rsp, STACK_TOP
     mov rbp, rsp
     cld
 

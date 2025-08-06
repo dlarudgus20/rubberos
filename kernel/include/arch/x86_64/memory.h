@@ -23,7 +23,6 @@ typedef page_entry_t pagetable_t[PAGETABLE_LENGTH];
 #define KERNEL_START_VIRT       0xffffffff80000000
 
 #define KSTACK_SIZE             0x00200000
-#define KSTACK_START_PHYS       0x00600000
 #define KSTACK_START_VIRT       0xffffffff8f000000
 
 #define IOMAP_VIRT_SIZE         0x0000007f00000000

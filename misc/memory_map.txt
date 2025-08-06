@@ -2,7 +2,7 @@ Physical Memory
 
 [0x00000000 ~ 0x00200000)       unused & hardware
 [0x00200000 ~ 0x00600000)       kernel
-[0x00600000 ~ 0x00800000)       kernel stack
+[0x00600000 ~ 0x00800000)       kernel stack (.bss)
 [0x00800000 ~      -    )       dynamic memory
 
 Virtual Memory (Kernel)
@@ -17,7 +17,7 @@ logical address                              physical address            descrip
     [0xffffff80 00000000 ~ 0xffffffff 00000000)               -               -
     [0xffffffff 80000000 ~ 0xffffffff 80400000)   [0x00200000 ~ 0x00600000)   kernel
     [0xffffffff 80400000 ~ 0xffffffff 8f000000)               -               -
-    [0xffffffff 8f000000 ~ 0xffffffff 8f200000)   [0x00600000 ~ 0x00800000)   kernel stack
+    [0xffffffff 8f000000 ~ 0xffffffff 8f200000)   <    in .bss section    >   kernel stack
     [0xffffffff 8f200000 ~ 0xffffffff ffffffff]               -               -
 
 Virtual Memory (User)
