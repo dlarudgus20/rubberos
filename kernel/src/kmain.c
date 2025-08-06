@@ -8,11 +8,12 @@
 
 void kmain(void) {
     serial_init();
-    fb_init();
     mmap_init();
+    fb_init();
 
     mmap_print_bootinfo();
     mmap_print_dyn();
+    mem_pagetable_print();
 
     while (1) {
         wait_for_int();

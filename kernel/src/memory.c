@@ -1,13 +1,18 @@
+#include <stdalign.h>
 #include <freec/stdlib.h>
 #include <freec/string.h>
+#include <buddy/buddy.h>
+#include <slab/slab.h>
 
+#include "arch/memory.h"
 #include "memory.h"
 #include "boot.h"
 
 #include "drivers/serial.h"
 
-#define DYNMEM_START_PHYS 0x00800000
-#define PAGE_SIZE 0x1000
+#if PAGE_SIZE != BUDDY_UNIT || PAGE_SIZE != SLAB_PAGE
+#error PAGE_SIZE must be equal to BUDDY_UNIT and SLAB_PAGE
+#endif
 
 union mmap_buffer {
     struct {
@@ -20,35 +25,17 @@ union mmap_buffer {
 
 static union mmap_buffer g_mmap_dyn;
 
-static const char* mmap_entry_type_str(mmap_entry_type type) {
-    switch (type) {
-        case MMAP_ENTRY_AVAILABLE:
-            return "Available";
-        case MMAP_ENTRY_RESERVED:
-            return "Reserved";
-        case MMAP_ENTRY_ACPI_RECLAIMABLE:
-            return "AcpiReclaimable";
-        case MMAP_ENTRY_ACPI_NVS:
-            return "AcpiNvs";
-        case MMAP_ENTRY_BADRAM:
-            return "BadRAM";
-        default:
-            return 0;
-    }
-}
-
 static int comp_mmap_entry(const void* a, const void* b) {
     const struct mmap_entry *ae = a, *be = b;
     return ae->base > be->base ? 1 : (ae->base < be->base ? -1 : 0);
 }
 
-static void construct_mmap_dyn(void) {
-    const struct mmap* mmap_boot = bootinfo_get()->mmap;
+static void construct_mmap_dyn(const struct mmap* mmap_boot) {
     g_mmap_dyn.len = mmap_boot->len;
     memcpy(&g_mmap_dyn.entries, &mmap_boot->entries, mmap_boot->len * sizeof(struct mmap_entry));
     sort(g_mmap_dyn.entries, g_mmap_dyn.len, sizeof(struct mmap_entry), comp_mmap_entry);
 
-    size_t prev_end = DYNMEM_START_PHYS;
+    size_t prev_end = DYNMEM_START_PHYS_MINIMUM;
     for (size_t i = 0; i < g_mmap_dyn.len; i++) {
         struct mmap_entry* entry = g_mmap_dyn.entries + i;
         if (entry->type != MMAP_ENTRY_AVAILABLE) {
@@ -81,7 +68,8 @@ static void construct_mmap_dyn(void) {
 }
 
 void mmap_init(void) {
-    construct_mmap_dyn();
+    construct_mmap_dyn(bootinfo_get()->mmap);
+    pagetable_construct(&g_mmap_dyn.mmap);
 }
 
 static void mmap_print(const struct mmap* mmap, const char* title) {
@@ -105,4 +93,8 @@ void mmap_print_bootinfo(void) {
 
 void mmap_print_dyn(void) {
     mmap_print(&g_mmap_dyn.mmap, "Dynamic Memory Map");
+}
+
+void mem_pagetable_print(void) {
+    pagetable_print(&g_mmap_dyn.mmap);
 }

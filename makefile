@@ -9,14 +9,12 @@ GRUB_CFG := grub/boot/grub/grub.cfg
 TARGET_IMAGE := $(DIR_BIN)/boot.iso
 
 QEMU_DRIVES := -cdrom "$(TARGET_IMAGE)"
-QEMU_FLAGS := -L . -m 64 $(QEMU_DRIVES) -rtc base=localtime -M pc
+QEMU_FLAGS := -L . -m 64 $(QEMU_DRIVES) -rtc base=localtime -M pc -serial stdio
 BOCHSRC := bochsrc.bxrc
 
 ifeq ($(UEFI), 1)
-UEFI_FIRMWARE := /usr/share/ovmf/OVMF.fd
+UEFI_FIRMWARE ?= /usr/share/ovmf/OVMF.fd
 QEMU_FLAGS += -bios $(UEFI_FIRMWARE)
-else
-QEMU_FLAGS += -serial stdio
 endif
 
 SUBDIRS := libfreec libcoll libbuddy libslab kernel

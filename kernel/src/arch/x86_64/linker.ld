@@ -38,6 +38,8 @@ SECTIONS
         *(.bss .bss.* .gnu.linkonce.b.*)
     }
 
+    # TODO: grub seems to ignore .stack section
+
     . = 0xffffffff8f000000;
     __stack_bottom = .;
     __stack_bottom_lba = 0x00600000;

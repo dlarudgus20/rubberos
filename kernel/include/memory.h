@@ -1,18 +1,16 @@
 #pragma once
 
 #include <stdint.h>
+#include <freec/inttypes.h>
 
 typedef uint64_t mmap_ulong;
 typedef uint32_t mmap_entry_type;
 
-#define PRImul "lx"
-#define PRImet "u"
+#define PRImul PRIx64
+#define PRImet PRIu32
 
 #define MMAP_ENTRY_AVAILABLE 1
-#define MMAP_ENTRY_RESERVED 2
-#define MMAP_ENTRY_ACPI_RECLAIMABLE 3
-#define MMAP_ENTRY_ACPI_NVS 4
-#define MMAP_ENTRY_BADRAM 5
+// arch/memory.h for other flags
 
 struct mmap_entry {
     mmap_ulong base;
@@ -29,3 +27,7 @@ struct mmap {
 void mmap_init(void);
 void mmap_print_bootinfo(void);
 void mmap_print_dyn(void);
+
+// arch
+const char* mmap_entry_type_str(mmap_entry_type type);
+void mem_pagetable_print(void);

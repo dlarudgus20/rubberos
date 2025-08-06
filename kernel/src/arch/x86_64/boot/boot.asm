@@ -185,9 +185,6 @@ init_long:
     lea eax, [edi + 0x4000]    ; ffff ffff 8*
     or eax, 3
     mov [ebx+0xff0], eax
-    lea eax, [edi + 0x5000]    ; ffff ff80 __*
-    or eax, 3
-    mov [ebx], eax
     ; pdt (lower)
     lea ebx, [edi + 0x3000]
     mov dword [ebx+0x08], 0x00200083
@@ -198,21 +195,6 @@ init_long:
     mov dword [ebx], 0x00200083     ; kernel 4mb
     mov dword [ebx+8], 0x00400083
     mov dword [ebx+0x78*8], 0x00600083 ; stack
-    mov dword [ebx+0x80*8], 0x00800083 ; stack
-    ; pdt (fb)
-    lea ebx, [edi + 0x5000]
-    mov eax, [bootinfo_fb - DISPLACEMENT]
-    and eax, 0xffe00000
-    or eax, 0x83
-    mov ecx, 512
-.pdt_loop:
-    mov [ebx], eax
-    add ebx, 8
-    add eax, 0x200000
-    jc .end_pdt
-    dec ecx
-    jnz .pdt_loop
-.end_pdt:
 
     mov cr3, edi
     mov eax, cr4
@@ -249,12 +231,6 @@ lm_start:
 
     mov rax, bootinfo_mmap
     mov [bootinfo_ptr_mmap], rax
-
-    xor rdi, rdi
-    mov ebx, [bootinfo_fb]
-    and rdi, 0x1fffff
-    mov rax, 0xffffff8000000000
-    add rdi, rax
 
     mov rax, kmain_arch
     call rax

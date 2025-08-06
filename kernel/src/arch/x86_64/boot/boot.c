@@ -25,11 +25,11 @@ const struct bootinfo* bootinfo_get(void) {
     return &g_bootinfo;
 }
 
-void kmain_arch(volatile void* video) {
+void kmain_arch(void) {
     g_bootinfo.cmd = g_bootinfo_arch.cmd;
     g_bootinfo.mmap = g_bootinfo_arch.mmap;
 
-    g_bootinfo.fb_info.addr = video;
+    g_bootinfo.fb_addr_phys = g_bootinfo_arch.fb_addr;
     g_bootinfo.fb_info.pitch = g_bootinfo_arch.fb_pitch;
     g_bootinfo.fb_info.width = g_bootinfo_arch.fb_width;
     g_bootinfo.fb_info.height = g_bootinfo_arch.fb_height;

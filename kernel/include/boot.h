@@ -9,6 +9,7 @@
 struct bootinfo {
     const char* cmd;
     const struct mmap* mmap;
+    uintptr_t fb_addr_phys;
     struct fb_info fb_info;
 };
 
