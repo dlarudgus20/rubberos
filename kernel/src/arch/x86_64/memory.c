@@ -134,7 +134,7 @@ struct dynpage_factory {
     pagetable_t* tables[4];
     uintptr_t first_3[3];
     uint16_t next_indices[4];
-    uint32_t count;
+    uint32_t metapage_count;
     uint32_t first_3_index;
 };
 
@@ -147,7 +147,7 @@ static struct dynpage_factory dynpage_factory_create(void) {
         // pagetable_construct_dyn_3 maps PML4:0, PDPT:0, PDT:1, PT:[0,2]
         // thus next_indices is set by [1, 1, 2, 3]
         .next_indices = { 1, 1, 2, 3 },
-        .count = 0,
+        .metapage_count = 0,
         .first_3_index = 0,
     };
 }
@@ -163,6 +163,7 @@ static void dynpage_factory_next_recur(struct dynpage_factory* factory,
         factory->tables[level] = next;
         factory->next_indices[level] = 0;
         factory->next_table++;
+        factory->metapage_count++;
 
         uint32_t next_phys = virt_to_phys_dynmem((uintptr_t)next, mmap_dyn);
         dynpage_factory_next_recur(factory, level - 1, next_phys, mmap_dyn);
@@ -170,7 +171,6 @@ static void dynpage_factory_next_recur(struct dynpage_factory* factory,
 
     (*factory->tables[level])[factory->next_indices[level]] = addr_phys | KERNEL_PAGE_FLAG;
     factory->next_indices[level]++;
-    factory->count++;
 }
 
 static void dynpage_factory_next(struct dynpage_factory* factory,
@@ -180,15 +180,16 @@ static void dynpage_factory_next(struct dynpage_factory* factory,
         factory->first_3[factory->first_3_index] = addr_phys;
         if (++factory->first_3_index == 3) {
             pagetable_construct_dyn_3(factory->first_3[0], factory->first_3[1], factory->first_3[2]);
-            factory->count = 3;
+            factory->metapage_count = 3;
         }
     } else {
         dynpage_factory_next_recur(factory, 3, addr_phys, mmap_dyn);
     }
 }
 
-static void pagetable_construct_dyn(const struct mmap* mmap_dyn) {
+static struct pagetable_construct_result pagetable_construct_dyn(const struct mmap* mmap_dyn) {
     struct dynpage_factory factory = dynpage_factory_create();
+    size_t pages = 0;
 
     for (size_t i = 0; i < mmap_dyn->len; i++) {
         const struct mmap_entry* entry = mmap_dyn->entries + i;
@@ -197,14 +198,21 @@ static void pagetable_construct_dyn(const struct mmap* mmap_dyn) {
             addr_phys += PAGE_SIZE
         ) {
             dynpage_factory_next(&factory, addr_phys, mmap_dyn);
+            pages++;
         }
     }
+
+    return (struct pagetable_construct_result){
+        .dyn_total_len = pages * PAGE_SIZE,
+        .dyn_pagetable_len = factory.metapage_count * PAGE_SIZE,
+    };
 }
 
-void pagetable_construct(const struct mmap* mmap_dyn) {
+struct pagetable_construct_result pagetable_construct(const struct mmap* mmap_dyn) {
     pagetable_construct_kernel();
-    pagetable_construct_dyn(mmap_dyn);
+    struct pagetable_construct_result result = pagetable_construct_dyn(mmap_dyn);
     tlb_flush_all();
+    return result;
 }
 
 struct page_iterator {

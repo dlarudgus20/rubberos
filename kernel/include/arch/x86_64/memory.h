@@ -46,7 +46,12 @@ typedef page_entry_t pagetable_t[PAGETABLE_LENGTH];
 
 struct mmap;
 
-void pagetable_construct(const struct mmap* mmap_dyn);
+struct pagetable_construct_result {
+    size_t dyn_total_len;
+    size_t dyn_pagetable_len;
+};
+
+struct pagetable_construct_result pagetable_construct(const struct mmap* mmap_dyn);
 
 // all addresses must be aligned by PAGE_SIZE
 // if phys == 0, chagne only flags.

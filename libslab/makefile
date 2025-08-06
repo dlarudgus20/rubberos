@@ -1,6 +1,6 @@
 TARGET_NAME := libslab
 TARGET_TYPE := static-lib
-PROJECT_REFS := libfreec libcoll
+PROJECT_REFS := libcoll libfreec
 
 all: build
 

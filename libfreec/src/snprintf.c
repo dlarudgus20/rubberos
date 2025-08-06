@@ -42,6 +42,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define ssize_t intptr_t
+
 // unsupport floating point (%f, %g, %e, etc...)
 #define NOFLOAT
 
@@ -261,6 +263,11 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list va)
 					short *sp = va_arg(va, short *);
 					*sp = (str - buf);
 				}
+				else if (length == 'z')
+				{
+					size_t *sp = va_arg(va, size_t *);
+					*sp = (str - buf);
+				}
 				else
 				{
 					int *ip = va_arg(va, int *);
@@ -285,6 +292,13 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list va)
 					num = va_arg(va, long);
 				else
 					num = va_arg(va, unsigned long);
+			}
+			else if (length == 'z')
+			{
+				if (flags & SIGN)
+					num = va_arg(va, ssize_t);
+				else
+					num = va_arg(va, size_t);
 			}
 			else
 			{
@@ -454,7 +468,7 @@ static int skip_atoi(const char **s)
 
 static bool is_length(char c)
 {
-	return (c == 'h' || c == 'l' || c == 'L');
+	return (c == 'h' || c == 'l' || c == 'L' || c == 'z');
 }
 
 int snprintf(char *buf, size_t size, const char *format, ...)

@@ -20,7 +20,7 @@ struct test_buddy {
     std::vector<page> mem;
     test_buddy() {
         mem.resize(0x00200000 / 4096);
-        buddy_init(&buddy, (uintptr_t)mem.data(), mem.size() * sizeof(page));
+        buddy_init(&buddy, mem.data(), mem.size() * sizeof(page));
     }
     buddy_blocks* get() {
         return &buddy;
@@ -62,8 +62,7 @@ TEST(buddy_test, seq) {
         ASSERT_EQ(buddy->used, 0);
 
         for (size_t index = 0; index < block_count; index++) {
-            if (const uintptr_t addr = buddy_alloc(buddy.get(), size - 1)) {
-                volatile uint32_t* const slice = (uint32_t*)addr;
+            if (const auto slice = (volatile uint32_t*)buddy_alloc(buddy.get(), size - 1)) {
                 const size_t count = size / 4;
                 for (size_t i = 0; i < count; i++) {
                     slice[i] = (uint32_t)i;
@@ -78,7 +77,7 @@ TEST(buddy_test, seq) {
 
         for (size_t index = 0; index < block_count; index++) {
             const uintptr_t addr = buddy->start_addr + buddy->data_offset + size * index;
-            buddy_dealloc(buddy.get(), addr + 1, size - 1);
+            buddy_dealloc(buddy.get(), (void*)(addr + 1), size - 1);
         }
 
         ASSERT_EQ(buddy->used, 0);

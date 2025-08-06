@@ -17,6 +17,6 @@ struct buddy_blocks {
     size_t bitmaps_len;
 };
 
-void buddy_init(struct buddy_blocks *buddy, uintptr_t start_addr, size_t len);
-uintptr_t buddy_alloc(struct buddy_blocks* buddy, size_t len);
-void buddy_dealloc(struct buddy_blocks* buddy, uintptr_t addr, size_t len);
+void buddy_init(struct buddy_blocks *buddy, void* start_addr, size_t len);
+void* buddy_alloc(struct buddy_blocks* buddy, size_t len);
+void buddy_dealloc(struct buddy_blocks* buddy, void* addr, size_t len);

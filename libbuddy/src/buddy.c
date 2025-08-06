@@ -19,7 +19,7 @@ static void buddy_info_calc_metadata(struct buddy_blocks* buddy, size_t data_len
 
     while (1) {
         levels++;
-        bits += (block_count / 8) + 1;
+        bits += (block_count - 1) / 8 + 1;
 
         if (block_count == 1) {
             break;
@@ -36,18 +36,18 @@ static void buddy_info_calc_metadata(struct buddy_blocks* buddy, size_t data_len
     buddy->levels = levels;
 }
 
-static void buddy_info_init(struct buddy_blocks* buddy, uintptr_t start_addr, size_t total_len) {
+static void buddy_info_init(struct buddy_blocks* buddy, void* start_addr, size_t total_len) {
     buddy_info_calc_metadata(buddy, total_len);
     const size_t data_offset = szdiv_ceil(buddy->metadata_len, BUDDY_UNIT) * BUDDY_UNIT;
     buddy_info_calc_metadata(buddy, total_len - data_offset);
     assert(buddy->metadata_len < data_offset);
 
-    buddy->start_addr = start_addr;
+    buddy->start_addr = (uintptr_t)start_addr;
     buddy->total_len = total_len;
     buddy->data_offset = data_offset;
 }
 
-void buddy_init(struct buddy_blocks* buddy, uintptr_t start_addr, size_t total_len) {
+void buddy_init(struct buddy_blocks* buddy, void* start_addr, size_t total_len) {
     buddy_info_init(buddy, start_addr, total_len);
 
     const size_t bitmaps_len = buddy->levels;
@@ -55,7 +55,7 @@ void buddy_init(struct buddy_blocks* buddy, uintptr_t start_addr, size_t total_l
     struct block_bitmap* const bitmaps = (struct block_bitmap*)start_addr;
 
     const size_t total_bits_len = buddy->metadata_len - bitmaps_bytes;
-    uint8_t* const total_bits = (uint8_t*)(start_addr + bitmaps_bytes);
+    uint8_t* const total_bits = (uint8_t*)start_addr + bitmaps_bytes;
 
     memset(total_bits, 0, total_bits_len);
 
@@ -129,7 +129,7 @@ static size_t get_first_1(struct block_bitmap* bitmap) {
     return bits_idx * 8 + offset;
 }
 
-uintptr_t buddy_alloc(struct buddy_blocks* buddy, size_t len) {
+void* buddy_alloc(struct buddy_blocks* buddy, size_t len) {
     assert(len != 0);
 
     const size_t aligned_len = szdiv_ceil(len, BUDDY_UNIT) * BUDDY_UNIT;
@@ -138,7 +138,7 @@ uintptr_t buddy_alloc(struct buddy_blocks* buddy, size_t len) {
 
     if (bitmap_idx_fit >= bitmaps_len) {
         // requested memory is too large
-        return 0;
+        return NULL;
     }
 
     for (size_t bitmap_idx = bitmap_idx_fit; bitmap_idx <= bitmaps_len; bitmap_idx++) {
@@ -161,14 +161,14 @@ uintptr_t buddy_alloc(struct buddy_blocks* buddy, size_t len) {
         buddy->used += aligned_len;
 
         const uintptr_t data_addr = buddy->start_addr + buddy->data_offset;
-        return data_addr + block_index * (BUDDY_UNIT << bitmap_idx);
+        return (void*)(data_addr + block_index * (BUDDY_UNIT << bitmap_idx));
     }
 
     // there is no memory to allocate
-    return 0;
+    return NULL;
 }
 
-void buddy_dealloc(struct buddy_blocks* buddy, uintptr_t addr, size_t len) {
+void buddy_dealloc(struct buddy_blocks* buddy, void* addr, size_t len) {
     if (len == 0) {
         return;
     }
@@ -176,8 +176,8 @@ void buddy_dealloc(struct buddy_blocks* buddy, uintptr_t addr, size_t len) {
     const uintptr_t data_addr = buddy->start_addr + buddy->data_offset;
     const size_t data_len = buddy->total_len - buddy->data_offset;
 
-    const uintptr_t aligned_addr = addr / BUDDY_UNIT * BUDDY_UNIT;
-    const uintptr_t aligned_end = uptrdiv_ceil(addr + len, BUDDY_UNIT) * BUDDY_UNIT;
+    const uintptr_t aligned_addr = (uintptr_t)addr / BUDDY_UNIT * BUDDY_UNIT;
+    const uintptr_t aligned_end = uptrdiv_ceil((uintptr_t)addr + len, BUDDY_UNIT) * BUDDY_UNIT;
     const size_t aligned_len = aligned_end - aligned_addr;
 
     assert(data_addr <= aligned_addr && aligned_addr < data_addr + data_len);

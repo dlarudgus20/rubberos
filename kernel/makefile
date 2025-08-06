@@ -1,6 +1,6 @@
 TARGET_NAME := kernel
 TARGET_TYPE := executable
-PROJECT_REFS := libfreec libcoll libbuddy libslab
+PROJECT_REFS := libbuddy libslab libcoll libfreec
 
 all: build
 

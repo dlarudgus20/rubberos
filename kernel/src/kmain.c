@@ -14,6 +14,9 @@ void kmain(void) {
     mmap_print_bootinfo();
     mmap_print_dyn();
     pagetable_print();
+    dynmem_print();
+
+    dynmem_test_seq();
 
     while (1) {
         wait_for_int();
