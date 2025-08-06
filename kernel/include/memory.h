@@ -28,6 +28,10 @@ void mmap_init(void);
 void mmap_print_bootinfo(void);
 void mmap_print_dyn(void);
 
+uintptr_t mmio_alloc_mapping(uintptr_t begin_phys, uintptr_t end_phys);
+void mmio_dealloc_mapping(uintptr_t begin_virt, uintptr_t end_virt);
+
+void pagetable_print(void);
+
 // arch
 const char* mmap_entry_type_str(mmap_entry_type type);
-void mem_pagetable_print(void);

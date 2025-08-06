@@ -13,6 +13,7 @@ struct singlylist {
 
 void singlylist_init(struct singlylist* list);
 struct singlylist_link* singlylist_head(struct singlylist* list);
+struct singlylist_link* singlylist_before_head(struct singlylist* list);
 
 void singlylist_push_front(struct singlylist* restrict list, struct singlylist_link* restrict to_insert);
 struct singlylist_link* singlylist_pop_front(struct singlylist* list);

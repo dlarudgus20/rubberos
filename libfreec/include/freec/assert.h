@@ -3,8 +3,10 @@
 #include <stdnoreturn.h>
 
 #if __STDC_HOSTED__
-#include <assert.h> // to override standard assertion
-#undef assert
+#include <assert.h>
+#undef assert // to override standard assert()
+#elif __STDC_VERSION__ < 202311l
+#define static_assert _Static_assert
 #endif
 
 #define panic(msg) (panic_impl((#msg)[0] ? "panic : " msg : "panic", __FILE__, __func__, __LINE__))

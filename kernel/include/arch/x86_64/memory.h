@@ -41,7 +41,15 @@ typedef page_entry_t pagetable_t[PAGETABLE_LENGTH];
 
 #define PAGE_MASK_ADDR          0x000ffffffffff000
 
+#define PAGE_FLAG_NIL 0
+#define KERNEL_PAGE_FLAG (PAGE_FLAG_PRESENT | PAGE_FLAG_WRITABLE)
+
 struct mmap;
 
 void pagetable_construct(const struct mmap* mmap_dyn);
-void pagetable_print(const struct mmap* mmap_dyn);
+
+// all addresses must be aligned by PAGE_SIZE
+// if phys == 0, chagne only flags.
+void pagetable_map(uintptr_t begin_virt, uintptr_t end_virt, uintptr_t phys, page_entry_t flags);
+
+void pagetable_print_with_dyn(const struct mmap* mmap_dyn);

@@ -9,6 +9,10 @@ struct singlylist_link* singlylist_head(struct singlylist* list) {
     return list->dummy.next;
 }
 
+struct singlylist_link* singlylist_before_head(struct singlylist* list) {
+    return &list->dummy;
+}
+
 void singlylist_push_front(struct singlylist* restrict list, struct singlylist_link* restrict to_insert) {
     singlylist_insert_after(&list->dummy, to_insert);
 }

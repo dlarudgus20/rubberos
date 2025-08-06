@@ -7,8 +7,6 @@
 #include "memory.h"
 #include "boot.h"
 
-#define KERNEL_PAGE_FLAG (PAGE_FLAG_PRESENT | PAGE_FLAG_WRITABLE)
-
 extern char __stack_bottom_lba[];
 #define KSTACK_START_PHYS ((uintptr_t)__stack_bottom_lba)
 
@@ -209,6 +207,25 @@ void pagetable_construct(const struct mmap* mmap_dyn) {
     tlb_flush_all();
 }
 
+struct page_iterator {
+    uint16_t pl4i, pdpi, pdti, pti;
+    pagetable_t *pdpt, *pdt, *pt;
+};
+
+static struct page_iterator page_iterator_from_virt(uintptr_t virt) {
+    uint16_t pl4i = (uint16_t)((virt & 0x0000ff8000000000) >> 39);
+    uint16_t pdpi = (uint16_t)((virt & 0x0000007fc0000000) >> 30);
+    uint16_t pdti = (uint16_t)((virt & 0x000000003fe00000) >> 21);
+    uint16_t pti  = (uint16_t)((virt & 0x00000000001ff000) >> 12);
+    return (struct page_iterator){ .pl4i = pl4i, .pdpi = pdpi, .pdti = pdti, pti = pti };
+}
+
+void pagetable_map(uintptr_t begin_virt, uintptr_t end_virt, uintptr_t phys, page_entry_t flags) {
+    struct page_iterator it = page_iterator_from_virt(begin_virt);
+    // TODO: page allocation required
+    (void)it;
+}
+
 #include <stdbool.h>
 #include <freec/inttypes.h>
 #include "drivers/serial.h"
@@ -282,7 +299,7 @@ static void pagetable_print_recur(pagetable_t* table, const struct mmap* mmap_dy
     }
 }
 
-void pagetable_print(const struct mmap* mmap_dyn) {
+void pagetable_print_with_dyn(const struct mmap* mmap_dyn) {
     const char* names[] = { "PML4E", " PDPE", "  PDE", "   PT" };
     pagetable_print_recur(&g_pagetable, mmap_dyn, names, 0, 0x0000008000000000, 0);
 }

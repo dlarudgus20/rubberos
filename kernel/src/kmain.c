@@ -13,7 +13,7 @@ void kmain(void) {
 
     mmap_print_bootinfo();
     mmap_print_dyn();
-    mem_pagetable_print();
+    pagetable_print();
 
     while (1) {
         wait_for_int();
