@@ -25,13 +25,13 @@ struct mmap {
     struct mmap_entry entries[];
 };
 
-void mmap_init(void);
+void memory_init(void);
 
-uintptr_t mmio_alloc_mapping(uintptr_t begin_phys, uintptr_t end_phys);
+volatile void* mmio_alloc_mapping(uintptr_t begin_phys, uintptr_t end_phys);
 void mmio_dealloc_mapping(uintptr_t begin_virt, uintptr_t end_virt);
 
-void* dynmem_alloc_page(size_t len);
-void dynmem_dealloc_page(void* ptr, size_t len);
+void* dynmem_alloc(size_t len);
+void dynmem_dealloc(void* ptr, size_t len);
 
 void mmap_print_bootinfo(void);
 void mmap_print_dyn(void);

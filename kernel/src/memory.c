@@ -107,7 +107,8 @@ static struct mmio_free_node* mmio_freelist_newnode(struct mmio_freelist* mfl) {
     return mfl->nodes + i;
 }
 
-uintptr_t mmio_alloc_mapping(uintptr_t begin_phys, uintptr_t end_phys) {
+// TODO: unit tests for mmio_*
+volatile void* mmio_alloc_mapping(uintptr_t begin_phys, uintptr_t end_phys) {
     uintptr_t aligned_begin_phys = begin_phys / PAGE_SIZE * PAGE_SIZE;
     uintptr_t aligned_len = uptrdiv_ceil(end_phys - aligned_begin_phys, PAGE_SIZE) * PAGE_SIZE;
 
@@ -134,8 +135,8 @@ uintptr_t mmio_alloc_mapping(uintptr_t begin_phys, uintptr_t end_phys) {
     }
     assert(link != NULL, "mmio virtual memory space is run out");
 
-    pagetable_map(begin, begin + aligned_len, aligned_begin_phys, KERNEL_PAGE_FLAG);
-    return begin;
+    pagetable_mmio_map(begin, begin + aligned_len, aligned_begin_phys, KERNEL_PAGE_FLAG, &g_mmap_dyn.mmap);
+    return (void*)begin;
 }
 
 void mmio_dealloc_mapping(uintptr_t begin_virt, uintptr_t end_virt) {
@@ -179,18 +180,18 @@ void mmio_dealloc_mapping(uintptr_t begin_virt, uintptr_t end_virt) {
     }
     assert(link != NULL, "invalid mmio address");
 
-    pagetable_map(aligned_begin, aligned_begin + aligned_len, 0, PAGE_FLAG_NIL);
+    pagetable_mmio_unmap(aligned_begin, aligned_begin + aligned_len, &g_mmap_dyn.mmap);
 }
 
-void* dynmem_alloc_page(size_t len) {
+void* dynmem_alloc(size_t len) {
     return (void*)buddy_alloc(&g_meminfo.buddy, len);
 }
 
-void dynmem_dealloc_page(void* ptr, size_t len) {
+void dynmem_dealloc(void* ptr, size_t len) {
     buddy_dealloc(&g_meminfo.buddy, ptr, len);
 }
-#include "drivers/serial.h"
-void mmap_init(void) {
+
+void memory_init(void) {
     construct_mmap_dyn(bootinfo_get()->mmap);
 
     struct pagetable_construct_result r = pagetable_construct(&g_mmap_dyn.mmap);
@@ -201,7 +202,7 @@ void mmap_init(void) {
         (void*)(DYNMEM_START_VIRT + r.dyn_pagetable_len),
         r.dyn_total_len - r.dyn_pagetable_len);
 
-    if (0) mmio_freelist_init();
+    mmio_freelist_init();
 }
 
 static void mmap_print(const struct mmap* mmap, const char* title) {
@@ -260,7 +261,7 @@ void dynmem_test_seq(void) {
 
         serial_printf("Alloc & Comp : ");
         for (size_t index = 0; index < block_count; index++) {
-            volatile uint32_t* slice = dynmem_alloc_page(size - 1);
+            volatile uint32_t* slice = dynmem_alloc(size - 1);
             if (slice) {
                 const size_t count = size / 4;
                 for (size_t i = 0; i < count; i++) {
@@ -280,7 +281,7 @@ void dynmem_test_seq(void) {
         serial_printf("\nDeallocation : ");
         for (size_t index = 0; index < block_count; index++) {
             const uintptr_t addr = buddy->start_addr + buddy->data_offset + size * index;
-            dynmem_dealloc_page((void*)(addr + 1), size - 1);
+            dynmem_dealloc((void*)(addr + 1), size - 1);
             serial_putchar('.');
         }
 

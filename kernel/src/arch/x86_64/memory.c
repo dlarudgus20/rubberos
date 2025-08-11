@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdalign.h>
 #include <freec/string.h>
 #include <freec/assert.h>
@@ -85,17 +86,6 @@ static void pagetable_construct_kernel(void) {
     pdt[0] = KERNEL_START_PHYS | PAGE_FLAG_HUGE | KERNEL_PAGE_FLAG;
     pdt[1] = (KERNEL_START_PHYS + 0x00200000) | PAGE_FLAG_HUGE | KERNEL_PAGE_FLAG;
     pdt[0x78] = KSTACK_START_PHYS | PAGE_FLAG_HUGE | KERNEL_PAGE_FLAG;
-
-    // TODO
-    static alignas(PAGE_SIZE) pagetable_t pdt_fb = { 0 };
-    uintptr_t fb_addr_aligned = bootinfo_get()->fb_addr_phys & ~0x001fffff;
-    pdpt[0] = virt_to_phys_kernel((uintptr_t)pdt_fb) | KERNEL_PAGE_FLAG;
-    for (int i = 0; i < PAGETABLE_LENGTH; i++) {
-        pdt_fb[i] = fb_addr_aligned | PAGE_FLAG_HUGE | KERNEL_PAGE_FLAG;
-        fb_addr_aligned += 0x00200000;
-    }
-    ((struct bootinfo*)bootinfo_get())->fb_info.addr = (volatile void*)(0xffffff8000000000 + (fb_addr_aligned & 0x001fffff));
-
     pagetable_set(virt_to_phys_kernel((uintptr_t)g_pagetable));
 }
 
@@ -114,7 +104,7 @@ static void pagetable_construct_dyn_3(uintptr_t pdpt0_phys, uintptr_t pdt0_phys,
     tlb_flush_all();
 
     // construct geniune first 3 pages
-    pagetable_t* pdpt0 = (pagetable_t*)(1ul << 39 | 1ul << 21 | 2ul << 12);
+    pagetable_t* pdpt0 = (pagetable_t*)((page_entry_t)1 << 39 | (page_entry_t)1 << 21 | (page_entry_t)2 << 12);
     pagetable_t* pdt0 = pdpt0 + 1;
     pagetable_t* pt0 = pdpt0 + 2;
     // DYNMEM_START_VIRT = PML4:0, PDPT:0, PDT:1, PT:0
@@ -216,25 +206,134 @@ struct pagetable_construct_result pagetable_construct(const struct mmap* mmap_dy
 }
 
 struct page_iterator {
-    uint16_t pl4i, pdpi, pdti, pti;
-    pagetable_t *pdpt, *pdt, *pt;
+    uint16_t pl4i, pdpi, pdti, ptei;
 };
 
 static struct page_iterator page_iterator_from_virt(uintptr_t virt) {
-    uint16_t pl4i = (uint16_t)((virt & 0x0000ff8000000000) >> 39);
-    uint16_t pdpi = (uint16_t)((virt & 0x0000007fc0000000) >> 30);
-    uint16_t pdti = (uint16_t)((virt & 0x000000003fe00000) >> 21);
-    uint16_t pti  = (uint16_t)((virt & 0x00000000001ff000) >> 12);
-    return (struct page_iterator){ .pl4i = pl4i, .pdpi = pdpi, .pdti = pdti, pti = pti };
+    return (struct page_iterator){
+        .pl4i = (uint16_t)((virt & 0x0000ff8000000000) >> 39),
+        .pdpi = (uint16_t)((virt & 0x0000007fc0000000) >> 30),
+        .pdti = (uint16_t)((virt & 0x000000003fe00000) >> 21),
+        .ptei  = (uint16_t)((virt & 0x00000000001ff000) >> 12),
+    };
 }
 
-void pagetable_map(uintptr_t begin_virt, uintptr_t end_virt, uintptr_t phys, page_entry_t flags) {
+static struct page_iterator page_iterator_next_pl4i(struct page_iterator it) {
+    if (++it.pl4i < 512) return it;
+    panic("page_iterator overflow");
+}
+
+static struct page_iterator page_iterator_next_pdpi(struct page_iterator it) {
+    if (++it.pdpi < 512) return it;
+    it.pdpi = 0;
+    return page_iterator_next_pl4i(it);
+}
+
+static struct page_iterator page_iterator_next_pdti(struct page_iterator it) {
+    if (++it.pdti < 512) return it;
+    it.pdti = 0;
+    return page_iterator_next_pdpi(it);
+}
+
+static struct page_iterator page_iterator_next(struct page_iterator it) {
+    if (++it.ptei < 512) return it;
+    it.ptei = 0;
+    return page_iterator_next_pdti(it);
+}
+
+static pagetable_t* page_get_or_alloc(pagetable_t* upper, uint16_t index, page_entry_t flags, const struct mmap* mmap_dyn) {
+    if ((*upper)[index] & PAGE_FLAG_PRESENT) {
+        return (pagetable_t*)phys_to_virt((*upper)[index] & PAGE_MASK_ADDR, mmap_dyn);
+    } else {
+        pagetable_t* t = dynmem_alloc(PAGE_SIZE);
+        memset(t, 0, PAGE_SIZE);
+        (*upper)[index] = (page_entry_t)virt_to_phys_dynmem((uintptr_t)t, mmap_dyn) | flags;
+        return t;
+    }
+}
+
+static pagetable_t* page_get_assert(pagetable_t* upper, uint16_t index, const struct mmap* mmap_dyn) {
+    assert((*upper)[index] & PAGE_FLAG_PRESENT);
+    return (pagetable_t*)phys_to_virt((*upper)[index] & PAGE_MASK_ADDR, mmap_dyn);
+}
+
+static bool pagetable_is_empty(pagetable_t* table) {
+    for (int i = 0; i < PAGETABLE_LENGTH; i++) {
+        if ((*table)[i] & PAGE_FLAG_PRESENT) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// TODO: unit tests for pagetable_mmio_*
+void pagetable_mmio_map(uintptr_t begin_virt, uintptr_t end_virt, uintptr_t phys, page_entry_t flags, const struct mmap* mmap_dyn) {
+    assert(flags & PAGE_FLAG_PRESENT);
+
     struct page_iterator it = page_iterator_from_virt(begin_virt);
-    // TODO: page allocation required
-    (void)it;
+    for (uintptr_t offset = 0; begin_virt + offset < end_virt; ) {
+        pagetable_t* pdpt = page_get_or_alloc(&g_pagetable, it.pl4i, flags, mmap_dyn);
+        pagetable_t* pdt = page_get_or_alloc(pdpt, it.pdpi, flags, mmap_dyn);
+
+        if (!((*pdt)[it.pdti] & PAGE_FLAG_PRESENT) && it.ptei == 0
+            && end_virt - begin_virt - offset >= 0x00200000
+        ) {
+            (*pdt)[it.pdti] = (phys + offset) | flags | PAGE_FLAG_HUGE;
+            tlb_flush_for((void*)(begin_virt + offset));
+
+            offset += 0x00200000;
+            it = page_iterator_next_pdti(it);
+        } else {
+            pagetable_t* pt = page_get_or_alloc(pdt, it.pdti, flags, mmap_dyn);
+            assert(!((*pt)[it.ptei] & PAGE_FLAG_PRESENT));
+            (*pt)[it.ptei] = (phys + offset) | flags;
+            tlb_flush_for((void*)(begin_virt + offset));
+
+            offset += PAGE_SIZE;
+            it = page_iterator_next(it);
+        }
+    }
 }
 
-#include <stdbool.h>
+void pagetable_mmio_unmap(uintptr_t begin_virt, uintptr_t end_virt, const struct mmap* mmap_dyn) {
+    struct page_iterator it = page_iterator_from_virt(begin_virt);
+    struct page_iterator next;
+    uintptr_t step;
+    for (uintptr_t offset = 0; begin_virt + offset < end_virt; offset += step, it = next) {
+        pagetable_t* pdpt = page_get_assert(&g_pagetable, it.pl4i, mmap_dyn);
+        pagetable_t* pdt = page_get_assert(pdpt, it.pdpi, mmap_dyn);
+        pagetable_t* pt = NULL;
+
+        assert((*pdt)[it.pdti] & PAGE_FLAG_PRESENT);
+        if ((*pdt)[it.pdti] & PAGE_FLAG_HUGE) {
+            assert(it.ptei == 0);
+            (*pdt)[it.pdti] = 0;
+            step = 0x00200000;
+            next = page_iterator_next_pdti(it);
+        } else {
+            pt = page_get_assert(pdt, it.pdti, mmap_dyn);
+            (*pt)[it.ptei] = 0;
+            step = PAGE_SIZE;
+            next = page_iterator_next(it);
+        }
+
+        tlb_flush_for((void*)(begin_virt + offset));
+
+        if (it.ptei > next.ptei && pagetable_is_empty(pt)) {
+            dynmem_dealloc(pt, PAGE_SIZE);
+            (*pdt)[it.pdti] = 0;
+        }
+        if (it.pdti > next.pdti && pagetable_is_empty(pdt)) {
+            dynmem_dealloc(pdt, PAGE_SIZE);
+            (*pdpt)[it.pdpi] = 0;
+        }
+        if (it.pdpi > next.pdpi && pagetable_is_empty(pdpt)) {
+            dynmem_dealloc(pdpt, PAGE_SIZE);
+            g_pagetable[it.pl4i] = 0;
+        }
+    }
+}
+
 #include <freec/inttypes.h>
 #include "drivers/serial.h"
 

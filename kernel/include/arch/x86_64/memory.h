@@ -28,16 +28,16 @@ typedef page_entry_t pagetable_t[PAGETABLE_LENGTH];
 #define IOMAP_VIRT_SIZE         0x0000007f00000000
 #define IOMAP_START_VIRT        0xffffff8000000000
 
-#define PAGE_FLAG_PRESENT       (1ul << 0)
-#define PAGE_FLAG_WRITABLE      (1ul << 1)
-#define PAGE_FLAG_USER          (1ul << 2)
-#define PAGE_FLAG_WRITE_THROUGH (1ul << 3)
-#define PAGE_FLAG_NO_CACHE      (1ul << 4)
-#define PAGE_FLAG_ACCESSED      (1ul << 5)
-#define PAGE_FLAG_DIRTY         (1ul << 6)
-#define PAGE_FLAG_HUGE          (1ul << 7)
-#define PAGE_FLAG_GLOBAL        (1ul << 8)
-#define PAGE_FLAG_NO_EXECUTE    (1ul << 63)
+#define PAGE_FLAG_PRESENT       ((page_entry_t)1 << 0)
+#define PAGE_FLAG_WRITABLE      ((page_entry_t)1 << 1)
+#define PAGE_FLAG_USER          ((page_entry_t)1 << 2)
+#define PAGE_FLAG_WRITE_THROUGH ((page_entry_t)1 << 3)
+#define PAGE_FLAG_NO_CACHE      ((page_entry_t)1 << 4)
+#define PAGE_FLAG_ACCESSED      ((page_entry_t)1 << 5)
+#define PAGE_FLAG_DIRTY         ((page_entry_t)1 << 6)
+#define PAGE_FLAG_HUGE          ((page_entry_t)1 << 7)
+#define PAGE_FLAG_GLOBAL        ((page_entry_t)1 << 8)
+#define PAGE_FLAG_NO_EXECUTE    ((page_entry_t)1 << 63)
 
 #define PAGE_MASK_ADDR          0x000ffffffffff000
 
@@ -54,7 +54,7 @@ struct pagetable_construct_result {
 struct pagetable_construct_result pagetable_construct(const struct mmap* mmap_dyn);
 
 // all addresses must be aligned by PAGE_SIZE
-// if phys == 0, chagne only flags.
-void pagetable_map(uintptr_t begin_virt, uintptr_t end_virt, uintptr_t phys, page_entry_t flags);
+void pagetable_mmio_map(uintptr_t begin_virt, uintptr_t end_virt, uintptr_t phys, page_entry_t flags, const struct mmap* mmap_dyn);
+void pagetable_mmio_unmap(uintptr_t begin_virt, uintptr_t end_virt, const struct mmap* mmap_dyn);
 
 void pagetable_print_with_dyn(const struct mmap* mmap_dyn);

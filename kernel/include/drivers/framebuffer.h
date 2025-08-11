@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 struct fb_info {
-    volatile void* addr;
+    uint32_t addr;
     uint32_t pitch;
     uint32_t width;
     uint32_t height;
