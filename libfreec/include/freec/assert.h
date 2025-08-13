@@ -23,6 +23,7 @@
 #define PANIC_FORMAT_ATTRIB
 #endif
 
+#define panicf(msg, ...) (panic_format("panic : " msg, __FILE__, __func__, __LINE__, __VA_ARGS__))
 #define assertf(exp, msg, ...) ((void)((exp) || (panic_format(msg " : %s", __FILE__, __func__, __LINE__, __VA_ARGS__, #exp), 1)))
 
 noreturn void panic_impl(const char *msg, const char *file, const char *func, unsigned line);

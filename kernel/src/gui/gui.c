@@ -73,7 +73,9 @@ void window_redraw(struct window* w, const struct rect* rt) {
     struct graphic g;
     graphic_from_fb(&g);
     graphic_set_offset(&g, &w->rect);
-    graphic_set_clipping(&g, rt);
+    if (rt) {
+        graphic_set_clipping(&g, rt);
+    }
     g.bg_color = w->bg_color;
     draw_window(w, &g);
 }

@@ -18,7 +18,7 @@ noreturn void panic_impl(const char *msg, const char *file, const char *func, un
 
 noreturn void panic_format(const char *fmt, const char *file, const char *func, unsigned line, ...) {
     va_list va;
-    char buf[4096];
+    char buf[1024];
     va_start(va, line);
     vsnprintf(buf, sizeof(buf), fmt, va);
     panic_impl(buf, file, func, line);

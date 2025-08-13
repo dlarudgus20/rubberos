@@ -1,8 +1,9 @@
 #include "kmain.h"
 
+#include "arch/interrupt.h"
+#include "arch/inst.h"
 #include "drivers/serial.h"
 #include "drivers/framebuffer.h"
-#include "arch/inst.h"
 
 #include "memory.h"
 #include "tty.h"
@@ -10,6 +11,7 @@
 #include "gui/tty_window.h"
 
 void kmain(void) {
+    interrupt_init();
     serial_init();
     tty0_init();
     memory_init();
@@ -25,6 +27,8 @@ void kmain(void) {
     dynmem_print();
 
     gui_draw_all();
+
+    __asm__ __volatile__ ( "int 0" );
 
     while (1) {
         wait_for_int();

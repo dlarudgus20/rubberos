@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 inline void out8(uint16_t port, uint8_t data) {
@@ -26,4 +27,24 @@ inline void tlb_flush_all(void) {
 
 inline void tlb_flush_for(void* virt) {
     __asm__ __volatile__ ( "invlpg [%0]" : : "r"(virt) : "memory" );
+}
+
+inline void load_gdt(void* gdt, size_t size) {
+    struct {
+        uint16_t size;
+        void* base;
+    } __attribute__((packed)) gdtr = { (uint16_t)(size - 1), gdt };
+    __asm__ __volatile__ ( "lgdt [%0]" : : "m"(gdtr) );
+}
+
+inline void load_idt(void* idt, size_t size) {
+    struct {
+        uint16_t size;
+        void* base;
+    } __attribute__((packed)) idtr = { (uint16_t)(size - 1), idt };
+    __asm__ __volatile__ ( "lidt [%0]" : : "m"(idtr) );
+}
+
+inline void load_tss(uint16_t selector) {
+    __asm__ __volatile__ ( "ltr %0" : : "r"(selector) );
 }

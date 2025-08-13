@@ -59,7 +59,6 @@ struct slab_page_allocator g_slab_page_allocator = {
     .ctx = NULL,
 };
 
-// TODO: fix buddy_alloc for large size
 static void* arraylist_alloc(size_t len, size_t* allocated_len) {
     size_t aligned = szdiv_ceil(len, PAGE_SIZE) * PAGE_SIZE;
     struct slice s = dynmem_alloc(aligned);
