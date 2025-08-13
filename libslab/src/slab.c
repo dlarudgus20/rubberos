@@ -215,7 +215,7 @@ void* slab_alloc(struct slab_allocator* slab) {
         }
     } else {
         struct linkedlist_link* const head = linkedlist_head(&slab->partial_list);
-        page = objectof(head, struct page, link);
+        page = container_of(head, struct page, link);
     }
 
     bool full;

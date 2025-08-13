@@ -2,7 +2,11 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdalign.h>
 #include <freec/inttypes.h>
+#include <buddy/slice.h>
+#include <slab/slab.h>
+#include <collections/arraylist.h>
 
 typedef uint64_t mmap_ulong;
 typedef uint32_t mmap_entry_type;
@@ -25,12 +29,17 @@ struct mmap {
     struct mmap_entry entries[];
 };
 
+extern struct slab_page_allocator g_slab_page_allocator;
+#define SLAB_INIT(slab, type) slab_init(slab, sizeof(type), alignof(type), &g_slab_page_allocator)
+
+extern struct arraylist_allocator g_arraylist_allocator;
+
 void memory_init(void);
 
 volatile void* mmio_alloc_mapping(uintptr_t begin_phys, uintptr_t end_phys);
 void mmio_dealloc_mapping(uintptr_t begin_virt, uintptr_t end_virt);
 
-void* dynmem_alloc(size_t len);
+struct slice dynmem_alloc(size_t len);
 void dynmem_dealloc(void* ptr, size_t len);
 
 void mmap_print_bootinfo(void);
@@ -40,5 +49,4 @@ void dynmem_print(void);
 
 void dynmem_test_seq(void);
 
-// arch
-const char* mmap_entry_type_str(mmap_entry_type type);
+#include "arch/memory.h"

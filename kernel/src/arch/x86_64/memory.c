@@ -3,9 +3,8 @@
 #include <freec/string.h>
 #include <freec/assert.h>
 
-#include "arch/memory.h"
-#include "arch/inst.h"
 #include "memory.h"
+#include "arch/inst.h"
 #include "boot.h"
 
 extern char __stack_bottom_lba[];
@@ -245,7 +244,7 @@ static pagetable_t* page_get_or_alloc(pagetable_t* upper, uint16_t index, page_e
     if ((*upper)[index] & PAGE_FLAG_PRESENT) {
         return (pagetable_t*)phys_to_virt((*upper)[index] & PAGE_MASK_ADDR, mmap_dyn);
     } else {
-        pagetable_t* t = dynmem_alloc(PAGE_SIZE);
+        pagetable_t* t = dynmem_alloc(PAGE_SIZE).ptr;
         memset(t, 0, PAGE_SIZE);
         (*upper)[index] = (page_entry_t)virt_to_phys_dynmem((uintptr_t)t, mmap_dyn) | flags;
         return t;
@@ -335,15 +334,15 @@ void pagetable_mmio_unmap(uintptr_t begin_virt, uintptr_t end_virt, const struct
 }
 
 #include <freec/inttypes.h>
-#include "drivers/serial.h"
+#include "tty.h"
 
 static void print_page_flags(page_entry_t entry) {
     bool printed = false;
 #define FLAG(name) \
     if (entry & PAGE_FLAG_##name) { \
         if (!printed) printed = true; \
-        else serial_printf(" | "); \
-        serial_printf(#name); \
+        else tty0_printf(" | "); \
+        tty0_printf(#name); \
     }
     FLAG(PRESENT)
     FLAG(WRITABLE)
@@ -357,7 +356,7 @@ static void print_page_flags(page_entry_t entry) {
     FLAG(NO_EXECUTE)
 #undef FLAG
     if (!printed) {
-        serial_printf("0");
+        tty0_printf("0");
     }
 }
 
@@ -380,7 +379,7 @@ static void pagetable_print_recur(pagetable_t* table, const struct mmap* mmap_dy
                 uintptr_t v_raw = (virt << 9 | (uintptr_t)leaf_begin) << shifts[depth];
                 uintptr_t v_ext = v_raw & sign ? v_raw | sign : v_raw;
 
-                serial_printf("%s %#018"PRIxPTR"-%#018"PRIxPTR" to %#"PRIxPTR"-%#"PRIxPTR"\n", names[depth], v_ext, v_ext + len, phys, phys + len);
+                tty0_printf("%s %#018"PRIxPTR"-%#018"PRIxPTR" to %#"PRIxPTR"-%#"PRIxPTR"\n", names[depth], v_ext, v_ext + len, phys, phys + len);
                 leaf_begin = leaf ? (int)idx : -1;
             }
         }
@@ -397,9 +396,9 @@ static void pagetable_print_recur(pagetable_t* table, const struct mmap* mmap_dy
         page_entry_t entry = (*table)[idx];
         uintptr_t phys = entry & PAGE_MASK_ADDR;
 
-        serial_printf("%s %#7x to %#"PRIxPTR": ", names[depth], idx, phys);
+        tty0_printf("%s %#7x to %#"PRIxPTR": ", names[depth], idx, phys);
         print_page_flags(entry);
-        serial_putchar('\n');
+        tty0_printf("\n");
 
         pagetable_t* subtable = (pagetable_t*)phys_to_virt(phys, mmap_dyn);
         pagetable_print_recur(subtable, mmap_dyn, names, depth + 1, pagesize >> 9, virt << 9 | idx);

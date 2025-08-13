@@ -20,3 +20,10 @@ struct singlylist_link* singlylist_pop_front(struct singlylist* list);
 
 void singlylist_insert_after(struct singlylist_link* restrict link, struct singlylist_link* restrict to_insert);
 void singlylist_remove_after(struct singlylist_link* before);
+
+#define singlylist_foreach(ptr, list) \
+    for (struct singlylist_link* ptr = singlylist_head(list); ptr != NULL; ptr = ptr->next)
+
+#define singlylist_foreach_2(before, ptr, list) \
+    for (struct singlylist_link *before = singlylist_before_head(list), *ptr = singlylist_head(list); \
+        ptr != NULL; before = ptr, ptr = ptr->next)

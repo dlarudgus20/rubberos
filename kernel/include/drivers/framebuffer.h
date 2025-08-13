@@ -13,5 +13,5 @@ struct fb_info {
 };
 
 void fb_init(void);
-void fb_write_char(int x, int y, char c, uint32_t color);
-void fb_write_string(int x, int y, const char* str, uint32_t color, bool wrap);
+const struct fb_info* fb_info_get(void);
+uint32_t* fb_buffer_get(void);

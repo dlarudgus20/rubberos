@@ -13,4 +13,7 @@ inline uintptr_t uptrdiv_ceil(uintptr_t x, uintptr_t y) {
 
 void sort(void* ptr, size_t count, size_t size, int (*comp)(const void*, const void*));
 
-#define objectof(ptr, type, member) ((type*)((char*)(ptr) - offsetof(type, member)))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
+#define container_of(ptr, type, member) ((type*)((char*)(ptr) - offsetof(type, member)))

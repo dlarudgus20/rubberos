@@ -6,11 +6,10 @@
 #include <slab/slab.h>
 #include <collections/singlylist.h>
 
-#include "arch/memory.h"
 #include "memory.h"
 #include "boot.h"
 
-#include "drivers/serial.h"
+#include "tty.h"
 
 #if PAGE_SIZE != BUDDY_UNIT || PAGE_SIZE != SLAB_PAGE
 #error PAGE_SIZE must be equal to BUDDY_UNIT and SLAB_PAGE
@@ -45,6 +44,48 @@ struct meminfo {
 
 static union mmap_buffer g_mmap_dyn;
 static struct meminfo g_meminfo;
+
+static void* slab_page_alloc(void* ctx) {
+    return dynmem_alloc(SLAB_PAGE).ptr;
+}
+
+static void slab_page_dealloc(void* ctx, void* page) {
+    dynmem_dealloc(page, SLAB_PAGE);
+}
+
+struct slab_page_allocator g_slab_page_allocator = {
+    .alloc = slab_page_alloc,
+    .dealloc = slab_page_dealloc,
+    .ctx = NULL,
+};
+
+// TODO: fix buddy_alloc for large size
+static void* arraylist_alloc(size_t len, size_t* allocated_len) {
+    size_t aligned = szdiv_ceil(len, PAGE_SIZE) * PAGE_SIZE;
+    struct slice s = dynmem_alloc(aligned);
+    *allocated_len = s.length;
+    return s.ptr;
+}
+
+static void arraylist_dealloc(void* ptr, size_t len) {
+    dynmem_dealloc(ptr, len);
+}
+
+static size_t arraylist_shrink(void* ptr, size_t old_len, size_t new_len) {
+    size_t aligned_old = szdiv_ceil(old_len, PAGE_SIZE) * PAGE_SIZE;
+    size_t aligned_new = szdiv_ceil(new_len, PAGE_SIZE) * PAGE_SIZE;
+    if (aligned_old == aligned_new) {
+        return aligned_old;
+    }
+    dynmem_dealloc((char*)ptr + aligned_new, aligned_old - aligned_new);
+    return aligned_new;
+}
+
+struct arraylist_allocator g_arraylist_allocator = {
+    .alloc = arraylist_alloc,
+    .dealloc = arraylist_dealloc,
+    .shrink = arraylist_shrink,
+};
 
 static int comp_mmap_entry(const void* a, const void* b) {
     const struct mmap_entry *ae = a, *be = b;
@@ -117,7 +158,7 @@ volatile void* mmio_alloc_mapping(uintptr_t begin_phys, uintptr_t end_phys) {
     struct singlylist_link* link = before->next;
     uintptr_t begin;
     for (; link != NULL; before = link, link = link->next) {
-        struct mmio_free_node* node = objectof(link, struct mmio_free_node, link);
+        struct mmio_free_node* node = container_of(link, struct mmio_free_node, link);
 
         begin = node->begin;
         uintptr_t node_len = node->end - begin;
@@ -149,8 +190,8 @@ void mmio_dealloc_mapping(uintptr_t begin_virt, uintptr_t end_virt) {
     struct singlylist_link* before = before_head;
     struct singlylist_link* link = before->next;
     for (; link != NULL; before = link, link = link->next) {
-        struct mmio_free_node* before_node = objectof(before, struct mmio_free_node, link);
-        struct mmio_free_node* node = objectof(link, struct mmio_free_node, link);
+        struct mmio_free_node* before_node = container_of(before, struct mmio_free_node, link);
+        struct mmio_free_node* node = container_of(link, struct mmio_free_node, link);
 
         if (aligned_begin >= node->begin) {
             continue;
@@ -183,8 +224,8 @@ void mmio_dealloc_mapping(uintptr_t begin_virt, uintptr_t end_virt) {
     pagetable_mmio_unmap(aligned_begin, aligned_begin + aligned_len, &g_mmap_dyn.mmap);
 }
 
-void* dynmem_alloc(size_t len) {
-    return (void*)buddy_alloc(&g_meminfo.buddy, len);
+struct slice dynmem_alloc(size_t len) {
+    return buddy_alloc_slice(&g_meminfo.buddy, len);
 }
 
 void dynmem_dealloc(void* ptr, size_t len) {
@@ -206,15 +247,15 @@ void memory_init(void) {
 }
 
 static void mmap_print(const struct mmap* mmap, const char* title) {
-    serial_printf("%s: %d entries\n", title, mmap->len);
+    tty0_printf("%s: %d entries\n", title, mmap->len);
     for (uint32_t i = 0; i < mmap->len; i++) {
         const struct mmap_entry* entry = &mmap->entries[i];
         const char* type_str = mmap_entry_type_str(entry->type);
         if (type_str) {
-            serial_printf("    [0x%016"PRImul", 0x%016"PRImul") %s\n",
+            tty0_printf("    [0x%016"PRImul", 0x%016"PRImul") %s\n",
                 entry->base, entry->base + entry->length, mmap_entry_type_str(entry->type));
         } else {
-            serial_printf("    [0x%016"PRImul", 0x%016"PRImul") (unknown:%"PRImet")\n",
+            tty0_printf("    [0x%016"PRImul", 0x%016"PRImul") (unknown:%"PRImet")\n",
                 entry->base, entry->base + entry->length, entry->type);
         }
     }
@@ -233,35 +274,35 @@ void pagetable_print(void) {
 }
 
 void dynmem_print(void) {
-    serial_printf("===dynamic memory allocator infomation===\n");
-    serial_printf("metadata address     : %#018zx\n", g_meminfo.buddy.start_addr);
-    serial_printf("metadata size        : %#018zx\n", g_meminfo.buddy.metadata_len);
-    serial_printf("count of unit blocks : %#018zx\n", g_meminfo.buddy.units);
-    serial_printf("total bitmap level   : %u\n", g_meminfo.buddy.levels);
-    serial_printf("=========================================\n");
-    serial_printf("start address        : %#018zx\n", g_meminfo.buddy.start_addr + g_meminfo.buddy.data_offset);
-    serial_printf("dynmem size          : %#018zx\n", g_meminfo.buddy.total_len - g_meminfo.buddy.data_offset);
-    serial_printf("used size            : %#018zx\n", g_meminfo.buddy.used);
-    serial_printf("=========================================\n");
+    tty0_printf("===dynamic memory allocator infomation===\n");
+    tty0_printf("metadata address     : %#018zx\n", g_meminfo.buddy.start_addr);
+    tty0_printf("metadata size        : %#018zx\n", g_meminfo.buddy.metadata_len);
+    tty0_printf("count of unit blocks : %#018zx\n", g_meminfo.buddy.units);
+    tty0_printf("total bitmap level   : %u\n", g_meminfo.buddy.levels);
+    tty0_printf("=========================================\n");
+    tty0_printf("start address        : %#018zx\n", g_meminfo.buddy.start_addr + g_meminfo.buddy.data_offset);
+    tty0_printf("dynmem size          : %#018zx\n", g_meminfo.buddy.total_len - g_meminfo.buddy.data_offset);
+    tty0_printf("used size            : %#018zx\n", g_meminfo.buddy.used);
+    tty0_printf("=========================================\n");
 }
 
 void dynmem_test_seq(void) {
     struct buddy_blocks* buddy = &g_meminfo.buddy;
 
     uintptr_t data_addr = buddy->start_addr + buddy->data_offset;
-    serial_printf("memory chunk starts at %#zx\n", data_addr);
-    serial_printf("data range: [%#zx, %#zx)\n", data_addr, buddy->start_addr + buddy->total_len);
+    tty0_printf("memory chunk starts at %#zx\n", data_addr);
+    tty0_printf("data range: [%#zx, %#zx)\n", data_addr, buddy->start_addr + buddy->total_len);
 
     for (size_t level = 0; level < buddy->levels; level++) {
         const size_t block_count = buddy->units >> level;
         const size_t size = BUDDY_UNIT << level;
 
-        serial_printf("Bitmap Level #%zu (block_count=%zu, size=%#zx)\n", level, block_count, size);
+        tty0_printf("Bitmap Level #%zu (block_count=%zu, size=%#zx)\n", level, block_count, size);
         assert(buddy->used == 0);
 
-        serial_printf("Alloc & Comp : ");
+        tty0_printf("Alloc & Comp : ");
         for (size_t index = 0; index < block_count; index++) {
-            volatile uint32_t* slice = dynmem_alloc(size - 1);
+            volatile uint32_t* slice = dynmem_alloc(size - 1).ptr;
             if (slice) {
                 const size_t count = size / 4;
                 for (size_t i = 0; i < count; i++) {
@@ -270,7 +311,7 @@ void dynmem_test_seq(void) {
                 for (size_t i = 0; i < count; i++) {
                     assertf(slice[i] == (uint32_t)i, "comparison fail: level=%zu size=%zu index=%zu\n", level, size, index);
                 }
-                serial_putchar('.');
+                tty0_printf(".");
             } else {
                 assertf(false, "alloc() fail: level=%zu size=%zu index=%zu\n", level, size, index);
             }
@@ -278,16 +319,16 @@ void dynmem_test_seq(void) {
 
         assert(buddy->used == (buddy->total_len - buddy->data_offset) / size * size);
 
-        serial_printf("\nDeallocation : ");
+        tty0_printf("\nDeallocation : ");
         for (size_t index = 0; index < block_count; index++) {
             const uintptr_t addr = buddy->start_addr + buddy->data_offset + size * index;
             dynmem_dealloc((void*)(addr + 1), size - 1);
-            serial_putchar('.');
+            tty0_printf(".");
         }
 
         assert(buddy->used == 0);
-        serial_putchar('\n');
+        tty0_printf("\n");
     }
     
-    serial_printf("Done.\n");
+    tty0_printf("Done.\n");
 }

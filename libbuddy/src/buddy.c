@@ -129,7 +129,7 @@ static size_t get_first_1(struct block_bitmap* bitmap) {
     return bits_idx * 8 + offset;
 }
 
-void* buddy_alloc(struct buddy_blocks* buddy, size_t len) {
+struct slice buddy_alloc_slice(struct buddy_blocks* buddy, size_t len) {
     assert(len != 0);
 
     const size_t aligned_len = szdiv_ceil(len, BUDDY_UNIT) * BUDDY_UNIT;
@@ -138,10 +138,10 @@ void* buddy_alloc(struct buddy_blocks* buddy, size_t len) {
 
     if (bitmap_idx_fit >= bitmaps_len) {
         // requested memory is too large
-        return NULL;
+        return (struct slice){ .ptr = NULL, .length = 0 };
     }
 
-    for (size_t bitmap_idx = bitmap_idx_fit; bitmap_idx <= bitmaps_len; bitmap_idx++) {
+    for (size_t bitmap_idx = bitmap_idx_fit; bitmap_idx < bitmaps_len; bitmap_idx++) {
         struct block_bitmap* const bitmap = ((struct block_bitmap*)buddy->bitmaps) + bitmap_idx;
 
         if (is_empty(bitmap)) {
@@ -158,14 +158,18 @@ void* buddy_alloc(struct buddy_blocks* buddy, size_t len) {
             set_1(below_bitmap, below_block_index + 1);
         }
 
-        buddy->used += aligned_len;
+        uint32_t allocated_len = BUDDY_UNIT << bitmap_idx_fit;
+        buddy->used += allocated_len;
 
         const uintptr_t data_addr = buddy->start_addr + buddy->data_offset;
-        return (void*)(data_addr + block_index * (BUDDY_UNIT << bitmap_idx));
+        return (struct slice){
+            .ptr = (void*)(data_addr + block_index * (BUDDY_UNIT << bitmap_idx)),
+            .length = allocated_len,
+        };
     }
 
     // there is no memory to allocate
-    return NULL;
+    return (struct slice){ .ptr = NULL, .length = 0 };
 }
 
 void buddy_dealloc(struct buddy_blocks* buddy, void* addr, size_t len) {
@@ -211,5 +215,5 @@ void buddy_dealloc(struct buddy_blocks* buddy, void* addr, size_t len) {
         current += 1;
     }
 
-    buddy->used -= aligned_len;
+    buddy->used -= BUDDY_UNIT << bitmap_idx_fit;
 }

@@ -5,7 +5,7 @@ PROJECT_REFS := libbuddy libslab libcoll libfreec
 all: build
 
 ARCH := x86_64
-SUBDIRS := boot drivers
+SUBDIRS := boot drivers gui
 
 SRC_ARCH := arch/$(ARCH)
 SRC_SUBDIRS := $(SRC_ARCH) $(foreach dir, $(SUBDIRS), $(SRC_ARCH)/$(dir)) $(SUBDIRS)

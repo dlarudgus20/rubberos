@@ -51,6 +51,8 @@ struct pagetable_construct_result {
     size_t dyn_pagetable_len;
 };
 
+const char* mmap_entry_type_str(mmap_entry_type type);
+
 struct pagetable_construct_result pagetable_construct(const struct mmap* mmap_dyn);
 
 // all addresses must be aligned by PAGE_SIZE
