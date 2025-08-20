@@ -244,7 +244,7 @@ static pagetable_t* page_get_or_alloc(pagetable_t* upper, uint16_t index, page_e
     if ((*upper)[index] & PAGE_FLAG_PRESENT) {
         return (pagetable_t*)phys_to_virt((*upper)[index] & PAGE_MASK_ADDR, mmap_dyn);
     } else {
-        pagetable_t* t = dynmem_alloc(PAGE_SIZE).ptr;
+        pagetable_t* t = dynmem_alloc_nolock(PAGE_SIZE).ptr;
         memset(t, 0, PAGE_SIZE);
         (*upper)[index] = (page_entry_t)virt_to_phys_dynmem((uintptr_t)t, mmap_dyn) | flags;
         return t;
@@ -319,15 +319,15 @@ void pagetable_mmio_unmap(uintptr_t begin_virt, uintptr_t end_virt, const struct
         tlb_flush_for((void*)(begin_virt + offset));
 
         if (it.ptei > next.ptei && pagetable_is_empty(pt)) {
-            dynmem_dealloc(pt, PAGE_SIZE);
+            dynmem_dealloc_nolock(pt, PAGE_SIZE);
             (*pdt)[it.pdti] = 0;
         }
         if (it.pdti > next.pdti && pagetable_is_empty(pdt)) {
-            dynmem_dealloc(pdt, PAGE_SIZE);
+            dynmem_dealloc_nolock(pdt, PAGE_SIZE);
             (*pdpt)[it.pdpi] = 0;
         }
         if (it.pdpi > next.pdpi && pagetable_is_empty(pdpt)) {
-            dynmem_dealloc(pdpt, PAGE_SIZE);
+            dynmem_dealloc_nolock(pdpt, PAGE_SIZE);
             g_pagetable[it.pl4i] = 0;
         }
     }

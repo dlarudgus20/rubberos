@@ -8,7 +8,7 @@
 
 #include "memory.h"
 #include "boot.h"
-
+#include "spinlock.h"
 #include "tty.h"
 
 #if PAGE_SIZE != BUDDY_UNIT || PAGE_SIZE != SLAB_PAGE
@@ -36,6 +36,7 @@ struct mmio_freelist {
 };
 
 struct meminfo {
+    struct intrlock lock;
     struct mmio_freelist mmio_freelist;
     struct buddy_blocks buddy;
     size_t dyn_total_len;
@@ -149,6 +150,8 @@ static struct mmio_free_node* mmio_freelist_newnode(struct mmio_freelist* mfl) {
 
 // TODO: unit tests for mmio_*
 volatile void* mmio_alloc_mapping(uintptr_t begin_phys, uintptr_t end_phys) {
+    intrlock_acquire(&g_meminfo.lock);
+
     uintptr_t aligned_begin_phys = begin_phys / PAGE_SIZE * PAGE_SIZE;
     uintptr_t aligned_len = uptrdiv_ceil(end_phys - aligned_begin_phys, PAGE_SIZE) * PAGE_SIZE;
 
@@ -176,10 +179,14 @@ volatile void* mmio_alloc_mapping(uintptr_t begin_phys, uintptr_t end_phys) {
     assert(link != NULL, "mmio virtual memory space is run out");
 
     pagetable_mmio_map(begin, begin + aligned_len, aligned_begin_phys, KERNEL_PAGE_FLAG, &g_mmap_dyn.mmap);
+
+    intrlock_release(&g_meminfo.lock);
     return (void*)begin;
 }
 
 void mmio_dealloc_mapping(uintptr_t begin_virt, uintptr_t end_virt) {
+    intrlock_acquire(&g_meminfo.lock);
+
     uintptr_t aligned_begin = begin_virt / PAGE_SIZE * PAGE_SIZE;
     uintptr_t aligned_len = uptrdiv_ceil(end_virt - aligned_begin, PAGE_SIZE) * PAGE_SIZE;
     uintptr_t aligned_end = aligned_begin + aligned_len;
@@ -221,17 +228,34 @@ void mmio_dealloc_mapping(uintptr_t begin_virt, uintptr_t end_virt) {
     assert(link != NULL, "invalid mmio address");
 
     pagetable_mmio_unmap(aligned_begin, aligned_begin + aligned_len, &g_mmap_dyn.mmap);
+
+    intrlock_release(&g_meminfo.lock);
 }
 
-struct slice dynmem_alloc(size_t len) {
+struct slice dynmem_alloc_nolock(size_t len) {
     return buddy_alloc_slice(&g_meminfo.buddy, len);
 }
 
-void dynmem_dealloc(void* ptr, size_t len) {
+struct slice dynmem_alloc(size_t len) {
+    intrlock_acquire(&g_meminfo.lock);
+    struct slice s = dynmem_alloc_nolock(len);
+    intrlock_release(&g_meminfo.lock);
+    return s;
+}
+
+void dynmem_dealloc_nolock(void* ptr, size_t len) {
     buddy_dealloc(&g_meminfo.buddy, ptr, len);
 }
 
+void dynmem_dealloc(void* ptr, size_t len) {
+    intrlock_acquire(&g_meminfo.lock);
+    dynmem_dealloc_nolock(ptr, len);
+    intrlock_release(&g_meminfo.lock);
+}
+
 void memory_init(void) {
+    intrlock_init(&g_meminfo.lock);
+
     construct_mmap_dyn(bootinfo_get()->mmap);
 
     struct pagetable_construct_result r = pagetable_construct(&g_mmap_dyn.mmap);
@@ -246,6 +270,8 @@ void memory_init(void) {
 }
 
 static void mmap_print(const struct mmap* mmap, const char* title) {
+    intrlock_acquire(&g_meminfo.lock);
+
     tty0_printf("%s: %d entries\n", title, mmap->len);
     for (uint32_t i = 0; i < mmap->len; i++) {
         const struct mmap_entry* entry = &mmap->entries[i];
@@ -258,6 +284,8 @@ static void mmap_print(const struct mmap* mmap, const char* title) {
                 entry->base, entry->base + entry->length, entry->type);
         }
     }
+
+    intrlock_release(&g_meminfo.lock);
 }
 
 void mmap_print_bootinfo(void) {
@@ -269,10 +297,14 @@ void mmap_print_dyn(void) {
 }
 
 void pagetable_print(void) {
+    intrlock_acquire(&g_meminfo.lock);
     pagetable_print_with_dyn(&g_mmap_dyn.mmap);
+    intrlock_release(&g_meminfo.lock);
 }
 
 void dynmem_print(void) {
+    intrlock_acquire(&g_meminfo.lock);
+
     tty0_printf("===dynamic memory allocator infomation===\n");
     tty0_printf("metadata address     : %#018zx\n", g_meminfo.buddy.start_addr);
     tty0_printf("metadata size        : %#018zx\n", g_meminfo.buddy.metadata_len);
@@ -283,9 +315,13 @@ void dynmem_print(void) {
     tty0_printf("dynmem size          : %#018zx\n", g_meminfo.buddy.total_len - g_meminfo.buddy.data_offset);
     tty0_printf("used size            : %#018zx\n", g_meminfo.buddy.used);
     tty0_printf("=========================================\n");
+
+    intrlock_release(&g_meminfo.lock);
 }
 
 void dynmem_test_seq(void) {
+    intrlock_acquire(&g_meminfo.lock);
+
     struct buddy_blocks* buddy = &g_meminfo.buddy;
 
     uintptr_t data_addr = buddy->start_addr + buddy->data_offset;
@@ -330,4 +366,6 @@ void dynmem_test_seq(void) {
     }
     
     tty0_printf("Done.\n");
+
+    intrlock_release(&g_meminfo.lock);
 }

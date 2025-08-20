@@ -1,7 +1,9 @@
 #include <freec/string.h>
 
-#include "arch/x86_64/interrupt.h"
-#include "arch/x86_64/inst.h"
+#include "interrupt.h"
+
+#include "spinlock.h"
+#include "arch/inst.h"
 
 #define GDT_FLAG_ACCESSED   0x01
 #define GDT_FLAG_RW         0x02
@@ -40,6 +42,8 @@ struct __attribute__((packed)) idt {
     unsigned reserved3:32;
 };
 
+static struct intrlock g_lock;
+
 static union gdt g_gdt[5];
 static struct idt g_idt[256];
 static struct tss g_tss_df;
@@ -72,7 +76,9 @@ static void init_idt(struct idt* idt, uint16_t segment, void (*handler)(), uint8
     idt->reserved3 = 0;
 }
 
-void interrupt_init(void) {
+void descriptor_init(void) {
+    intrlock_init(&g_lock);
+
     memset(g_gdt, 0, sizeof(g_gdt));
     memset(g_idt, 0, sizeof(g_idt));
     memset(&g_tss_df, 0, sizeof(g_tss_df));
@@ -89,6 +95,7 @@ void interrupt_init(void) {
     for (size_t i = 0; i < sizeof(g_idt) / sizeof(g_idt[0]); i++) {
         init_idt(g_idt + i, 0x08, isr_unknown, 0, 0);
     }
+
     init_idt(g_idt + 0, 0x08, isr_divide_by_zero, 0, 0);
     init_idt(g_idt + 1, 0x08, isr_debug, 0, 0);
     init_idt(g_idt + 2, 0x08, isr_nmi, 0, 0);
@@ -108,4 +115,10 @@ void interrupt_init(void) {
     init_idt(g_idt + 18, 0x08, isr_machine_check, 0, 0);
     init_idt(g_idt + 19, 0x08, isr_simd_floating_point, 0, 0);
     load_idt(g_idt, sizeof(g_idt));
+}
+
+void interrupt_register_isr(uint8_t vector, void (*handler)()) {
+    intrlock_acquire(&g_lock);
+    init_idt(g_idt + vector, 0x08, handler, 0, 0);
+    intrlock_release(&g_lock);
 }

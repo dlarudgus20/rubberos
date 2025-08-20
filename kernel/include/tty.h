@@ -1,8 +1,7 @@
 #pragma once
 
 #include <collections/singlylist.h>
-
-struct tty;
+#include "spinlock.h"
 
 struct tty_device {
     struct singlylist_link link;
@@ -11,6 +10,7 @@ struct tty_device {
 };
 
 struct tty {
+    struct intrlock lock;
     struct singlylist devices;
     char input_buffer[256];
     unsigned input_index;

@@ -1,14 +1,23 @@
 #include "kmain.h"
 
-#include "arch/interrupt.h"
+#include "interrupt.h"
 #include "arch/inst.h"
 #include "drivers/serial.h"
 #include "drivers/framebuffer.h"
+#include "drivers/keyboard.h"
 
 #include "memory.h"
 #include "tty.h"
 #include "gui/gui.h"
 #include "gui/tty_window.h"
+
+static void dispatch_intr_msg(struct intr_msg* msg) {
+    switch (msg->type) {
+        case INTR_MSG_KEYBOARD:
+            intr_msg_on_keyboard(msg);
+            break;
+    }
+}
 
 void kmain(void) {
     interrupt_init();
@@ -21,6 +30,10 @@ void kmain(void) {
     struct tty_window tw;
     tty_window_init(&tw, &g_tty0);
 
+    interrupt_device_init();
+    keyboard_init();
+    interrupt_device_enable();
+
     mmap_print_bootinfo();
     mmap_print_dyn();
     pagetable_print();
@@ -28,9 +41,20 @@ void kmain(void) {
 
     gui_draw_all();
 
-    __asm__ __volatile__ ( "int 0" );
+    struct intr_msg msg;
 
     while (1) {
-        wait_for_int();
+        interrupt_enable_and_wait();
+
+        while (1) {
+            interrupt_disable();
+            compiler_barrier();
+            if (!intr_queue_try_pop(&msg)) {
+                break;
+            }
+
+            interrupt_enable();
+            dispatch_intr_msg(&msg);
+        }
     }
 }

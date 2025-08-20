@@ -39,7 +39,9 @@ void memory_init(void);
 volatile void* mmio_alloc_mapping(uintptr_t begin_phys, uintptr_t end_phys);
 void mmio_dealloc_mapping(uintptr_t begin_virt, uintptr_t end_virt);
 
+struct slice dynmem_alloc_nolock(size_t len);
 struct slice dynmem_alloc(size_t len);
+void dynmem_dealloc_nolock(void* ptr, size_t len);
 void dynmem_dealloc(void* ptr, size_t len);
 
 void mmap_print_bootinfo(void);

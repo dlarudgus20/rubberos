@@ -1,11 +1,14 @@
 #include <slab/slab.h>
 #include <collections/arraylist.h>
 #include <freec/stdlib.h>
+
 #include "gui/gui.h"
 #include "gui/graphic.h"
 #include "memory.h"
+#include "spinlock.h"
 
 struct gui {
+    struct intrlock lock;
     struct slab_allocator slab_window;
     struct arraylist draw_list;
 };
@@ -13,16 +16,21 @@ struct gui {
 static struct gui g_gui;
 
 void gui_init(void) {
+    intrlock_init(&g_gui.lock);
     SLAB_INIT(&g_gui.slab_window, struct window);
     arraylist_init(&g_gui.draw_list, 0, &g_arraylist_allocator);
 }
 
 struct window* window_new(void) {
+    intrlock_acquire(&g_gui.lock);
+
     struct window* w = slab_alloc(&g_gui.slab_window);
     w->title = "New Window";
     w->rect = (struct rect){ .x = 120, .y = 120, .width = 640, .height = 480 };
     w->bg_color = 0xffffff;
     *(struct window**)arraylist_push_back(&g_gui.draw_list, sizeof(struct window*)) = w;
+
+    intrlock_release(&g_gui.lock);
     return w;
 }
 
@@ -59,6 +67,8 @@ struct size window_size_for_client(int width, int height) {
 }
 
 void gui_draw_all(void) {
+    intrlock_acquire(&g_gui.lock);
+
     struct graphic g;
     graphic_from_fb(&g);
     for (size_t i = 0; i < g_gui.draw_list.size / sizeof(struct window*); i++) {
@@ -67,9 +77,13 @@ void gui_draw_all(void) {
         g.bg_color = w->bg_color;
         draw_window(w, &g);
     }
+
+    intrlock_release(&g_gui.lock);
 }
 
 void window_redraw(struct window* w, const struct rect* rt) {
+    intrlock_acquire(&g_gui.lock);
+
     struct graphic g;
     graphic_from_fb(&g);
     graphic_set_offset(&g, &w->rect);
@@ -78,4 +92,6 @@ void window_redraw(struct window* w, const struct rect* rt) {
     }
     g.bg_color = w->bg_color;
     draw_window(w, &g);
+
+    intrlock_release(&g_gui.lock);
 }

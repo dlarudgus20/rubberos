@@ -92,3 +92,5 @@ int_handler_err alignment_check
 int_handler     machine_check
 int_handler     simd_floating_point
 int_handler     unknown
+
+int_handler     keyboard

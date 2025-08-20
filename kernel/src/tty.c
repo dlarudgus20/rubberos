@@ -6,9 +6,12 @@
 #include "tty.h"
 #include "drivers/framebuffer.h"
 #include "drivers/serial.h"
+#include "arch/inst.h"
 
 struct tty g_tty0;
 static struct tty_device g_ttyd_serial;
+
+static void tty_puts_nolock(struct tty* tty, const char* str);
 
 void tty0_init(void) {
     tty_init(&g_tty0);
@@ -17,37 +20,52 @@ void tty0_init(void) {
 }
 
 noreturn void panic_impl(const char* msg, const char* file, const char* func, unsigned line) {
-    tty_printf(&g_tty0, "[%s:%s:%d] %s\n", file, func, line, msg);
+    intrlock_acquire(&g_tty0.lock);
+
+    char buf[1024];
+    snprintf(buf, sizeof(buf), "[%s:%s:%d] %s\n", file, func, line, msg);
+    tty_puts_nolock(&g_tty0, buf);
     singlylist_foreach(ptr, &g_tty0.devices) {
         struct tty_device* device = container_of(ptr, struct tty_device, link);
         if (device->flush) {
             device->flush(device);
         }
     }
-    __asm__ __volatile__ ( "cli" );
-    while (1) __asm__ __volatile__ ("hlt");
+
+    while (1) wait_for_intr();
 }
 
 void tty_init(struct tty* tty) {
+    intrlock_init(&tty->lock);
     singlylist_init(&tty->devices);
     tty->input_buffer[0] = 0;
     tty->input_index = 0;
 }
 
 void tty_register_device(struct tty* tty, struct tty_device* device) {
+    intrlock_acquire(&tty->lock);
     singlylist_push_front(&tty->devices, &device->link);
+    intrlock_release(&tty->lock);
 }
 
 void tty_unregister_device(struct tty* tty, struct tty_device* device) {
+    intrlock_acquire(&tty->lock);
     singlylist_foreach_2(before, ptr, &tty->devices) {
         if (ptr == &device->link) {
             singlylist_remove_after(before);
             break;
         }
     }
+    intrlock_release(&tty->lock);
 }
 
 void tty_puts(struct tty* tty, const char* str) {
+    intrlock_acquire(&tty->lock);
+    tty_puts_nolock(tty, str);
+    intrlock_release(&tty->lock);
+}
+
+static void tty_puts_nolock(struct tty* tty, const char* str) {
     singlylist_foreach(ptr, &tty->devices) {
         struct tty_device* device = container_of(ptr, struct tty_device, link);
         device->write(device, str);
@@ -64,8 +82,10 @@ void tty_printf(struct tty* tty, const char* fmt, ...) {
 }
 
 void tty_on_read(struct tty* tty, char ch) {
+    intrlock_acquire(&tty->lock);
     if (tty->input_index < sizeof(tty->input_buffer) - 1) {
         tty->input_buffer[tty->input_index++] = ch;
         tty->input_buffer[tty->input_index] = 0;
     }
+    intrlock_release(&tty->lock);
 }
