@@ -18,3 +18,18 @@ struct rect rect_intersect(const struct rect* r1, const struct rect* r2) {
     }
     return r;
 }
+
+struct rect rect_union(const struct rect* r1, const struct rect* r2) {
+    if (r2->width == 0 || r2->height == 0) {
+        return *r1;
+    } else if (r1->width == 0 || r1->height == 0) {
+        return *r2;
+    }
+
+    struct rect r;
+    r.x = MIN(r1->x, r2->x);
+    r.y = MIN(r1->y, r2->y);
+    r.width = MAX(r1->x + r1->width, r2->x + r2->width) - r.x;
+    r.height = MAX(r1->y + r1->height, r2->y + r2->height) - r.y;
+    return r;
+}

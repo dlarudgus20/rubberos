@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #include "gui/graphic.h"
 #include "drivers/framebuffer.h"
 
@@ -16,11 +18,16 @@ void graphic_from_fb(struct graphic* g) {
 
 void graphic_set_offset(struct graphic* g, const struct rect* rt) {
     g->offset = rect_intersect(rt, &(struct rect){ .x = 0, .y = 0, .width = g->width, .height = g->height });
-    g->clipping = (struct rect){ .x = 0, .y = 0, .width = g->offset.width, .height = g->offset.height };
+    graphic_set_clipping(g, NULL);
 }
 
 void graphic_set_clipping(struct graphic* g, const struct rect* rt) {
-    g->clipping = rect_intersect(rt, &(struct rect){ .x = 0, .y = 0, .width = g->offset.width, .height = g->offset.height });
+    struct rect base = { .x = 0, .y = 0, .width = g->offset.width, .height = g->offset.height };
+    if (rt) {
+        g->clipping = rect_intersect(rt, &base);
+    } else {
+        g->clipping = base;
+    }
 }
 
 void graphic_draw_pixel(struct graphic* g, int x, int y, uint32_t color) {
@@ -77,6 +84,7 @@ void graphic_draw_char(struct graphic* g, int x, int y, char c, uint32_t color) 
 }
 
 void graphic_draw_string(struct graphic* g, const struct rect* rt, const char* str, uint32_t color, bool wrap) {
+    // TODO: seperate wrapping area and clipping area
     struct rect old_clip = g->clipping;
     struct rect c = rect_intersect(&old_clip, rt);
     g->clipping = c;

@@ -280,21 +280,21 @@ struct ps2_char ps2_keyboard_process_keyevent(struct ps2_keyboard* kb, const str
         case KEY_RCTRL: kb->rctrl = evt->keydown; break;
         case KEY_LALT: kb->lalt = evt->keydown; break;
         case KEY_RALT: kb->ralt = evt->keydown; break;
+    }
 
+    if (!evt->keydown) {
+        return raw;
+    }
+
+    switch (evt->keycode) {
         case KEY_CAPSLOCK:
-            if (evt->keydown) {
-                kb->caps = !kb->caps;
-            }
+            kb->caps = !kb->caps;
             break;
         case KEY_SCROLLLOCK:
-            if (evt->keydown) {
-                kb->scroll = !kb->scroll;
-            }
+            kb->scroll = !kb->scroll;
             break;
         case KEY_NUMLOCK:
-            if (evt->keydown) {
-                kb->num = !kb->num;
-            }
+            kb->num = !kb->num;
             break;
     }
 
@@ -350,7 +350,6 @@ struct ps2_char ps2_keyboard_process_keyevent(struct ps2_keyboard* kb, const str
             case KEY_SPACE:         return PS2CHAR(' ');
             case KEY_TAB:           return PS2CHAR('\t');
             case KEY_ENTER:         return PS2CHAR('\n');
-            case KEY_BACKSPACE:     return PS2CHAR('\b');
 
             case KEY_NUMPAD_MUL:    return PS2CHAR('*');
             case KEY_NUMPAD_DIV:    return PS2CHAR('/');

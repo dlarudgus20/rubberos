@@ -94,3 +94,4 @@ int_handler     simd_floating_point
 int_handler     unknown
 
 int_handler     keyboard
+int_handler     mouse

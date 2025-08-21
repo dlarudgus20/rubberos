@@ -21,7 +21,7 @@ void interrupt_device_init(void) {
 }
 
 void interrupt_device_enable(void) {
-    pic_mask_int(~(PIC_MASK_SLAVE | PIC_MASK_KEYBOARD));
+    pic_mask_int(~(PIC_MASK_SLAVE | PIC_MASK_KEYBOARD | PIC_MASK_MOUSE));
 }
 
 void pic_mask_int(uint16_t mask) {

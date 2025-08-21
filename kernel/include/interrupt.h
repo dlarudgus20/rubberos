@@ -7,6 +7,7 @@
 
 enum intr_msg_type {
     INTR_MSG_KEYBOARD,
+    INTR_MSG_MOUSE,
 };
 
 struct intr_msg {

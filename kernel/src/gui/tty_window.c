@@ -6,10 +6,22 @@
 #include "gui/gui.h"
 #include "tty.h"
 
+#define CW 8
+#define CH 16
+
 struct lines {
     uint16_t begin;
     uint16_t end;
 };
+
+static struct lines lines_union(struct lines a, struct lines b) {
+    if (b.begin == b.end) {
+        return a;
+    } else if (a.begin == a.end) {
+        return b;
+    }
+    return (struct lines){ MIN(a.begin, b.begin), MAX(a.end, b.end) };
+}
 
 static void scroll(struct tty_window* tw) {
     memmove(tw->buffer, tw->buffer + TTYW_WIDTH, TTYW_WIDTH * (TTYW_HEIGHT - 1));
@@ -19,6 +31,7 @@ static void scroll(struct tty_window* tw) {
     } else {
         tw->cursor_x = 0;
     }
+    window_invalidate(tw->window, NULL);
 }
 
 static struct lines newline(struct tty_window* tw) {
@@ -46,9 +59,13 @@ static struct lines write_one(struct tty_window* tw, char ch) {
 
 static void write(struct tty_device* device, const char* str) {
     struct tty_window* tw = container_of(device, struct tty_window, device);
+    struct lines lines = { 0 };
     while (*str != 0) {
-        write_one(tw, *str++);
+        lines = lines_union(lines, write_one(tw, *str++));
     }
+    window_invalidate(tw->window, &(struct rect){
+        .x = 0, .y = lines.begin * CH, .width = TTYW_WIDTH * CW, .height = (lines.end - lines.begin) * CH
+    });
 }
 
 static void flush(struct tty_device* device) {
@@ -63,17 +80,17 @@ static void proc(struct window* w, enum window_message msg, void* param) {
         struct graphic* g = param;
         struct tty_window* tw = w->data;
 
-        int cy = MAX(g->clipping.y / 16, 0);
-        int cx = MAX(g->clipping.x / 8, 0);
-        int cheight = MIN((g->clipping.y + g->clipping.height + 15) / 16, TTYW_HEIGHT);
-        int cwidth = MIN((g->clipping.x + g->clipping.width + 7) / 8, TTYW_WIDTH);
+        int cy = MAX(g->clipping.y / CH, 0);
+        int cx = MAX(g->clipping.x / CW, 0);
+        int cheight = MIN((g->clipping.y + g->clipping.height + CH - 1) / CH, TTYW_HEIGHT);
+        int cwidth = MIN((g->clipping.x + g->clipping.width + CW - 1) / CW, TTYW_WIDTH);
         for (int y = cy; y < cheight; y++) {
             for (int x = cx; x < cwidth; x++) {
-                graphic_draw_char(g, x * 8, y * 16, tw->buffer[y * TTYW_WIDTH + x], 0x000000);
+                graphic_draw_char(g, x * CW, y * CH, tw->buffer[y * TTYW_WIDTH + x], 0x000000);
             }
         }
 
-        graphic_fill_rect(g, tw->cursor_x * 8, (tw->cursor_y + 1) * 16 - CURSOR_THICKNESS, 8, CURSOR_THICKNESS, 0x1f1f1f);
+        graphic_fill_rect(g, tw->cursor_x * CW, (tw->cursor_y + 1) * CH - CURSOR_THICKNESS, CW, CURSOR_THICKNESS, 0x1f1f1f);
     }
 }
 
@@ -81,7 +98,7 @@ void tty_window_init(struct tty_window* tw, struct tty* tty) {
     tw->window = window_new();
     assert(tw->window);
 
-    struct size size = window_size_for_client(TTYW_WIDTH * 8, TTYW_HEIGHT * 16);
+    struct size size = window_size_for_client(TTYW_WIDTH * CW, TTYW_HEIGHT * CH);
     tw->window->rect.width = size.width;
     tw->window->rect.height = size.height;
     tw->window->title = "TTY";
