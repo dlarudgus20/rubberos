@@ -26,6 +26,10 @@ void kmain(void) {
     interrupt_init();
     serial_init();
     tty0_init();
+
+tty0_printf("test %#06x test\n", 0x1234);
+wait_for_intr();
+
     memory_init();
     fb_init();
     gui_init();
@@ -37,10 +41,10 @@ void kmain(void) {
     hid_init();
     interrupt_device_enable();
 
-    mmap_print_bootinfo();
-    mmap_print_dyn();
-    pagetable_print();
-    dynmem_print();
+    //mmap_print_bootinfo();
+    //mmap_print_dyn();
+    //pagetable_print();
+    //dynmem_print();
 
     gui_draw_all();
 

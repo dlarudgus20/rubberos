@@ -40,6 +40,42 @@
             "preLaunchTask": "Build bootable image & Launch Qemu with GDBStub (release)"
         },
         {
+            "name": "Attach to Qemu (debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/kernel/bin/debug/kernel.elf",
+            "cwd": "${workspaceRoot}",
+            "miDebuggerServerAddress": "localhost:1234",
+            "setupCommands": [
+                {
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Attach to Qemu (release)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/kernel/bin/release/kernel.elf",
+            "cwd": "${workspaceRoot}",
+            "miDebuggerServerAddress": "localhost:1234",
+            "setupCommands": [
+                {
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "Launch Test for libbuddy (debug)",
             "type": "cppdbg",
             "request": "launch",

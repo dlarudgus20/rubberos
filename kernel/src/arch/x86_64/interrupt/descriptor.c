@@ -116,8 +116,9 @@ void descriptor_init(void) {
     init_idt(g_idt + 19, 0x08, isr_simd_floating_point, 0, 0);
     load_idt(g_idt, sizeof(g_idt));
 }
-
+#include "tty.h"
 void interrupt_register_isr(uint8_t vector, void (*handler)()) {
+    tty0_printf("interrupt_register_isr: vector=%d, handler=%#018lx\n", vector, (uintptr_t)handler);
     intrlock_acquire(&g_lock);
     init_idt(g_idt + vector, 0x08, handler, 0, 0);
     intrlock_release(&g_lock);

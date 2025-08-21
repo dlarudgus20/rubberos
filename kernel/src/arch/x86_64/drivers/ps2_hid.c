@@ -222,9 +222,11 @@ void hid_init(void) {
 
     // enable interrupt
     if (p1) {
+        pic_irq_ready(PIC_IRQ_KEYBOARD);
         kb_enable_scan();
     }
     if (p2) {
+        pic_irq_ready(PIC_IRQ_MOUSE);
         ms_enable_scan();
     }
 

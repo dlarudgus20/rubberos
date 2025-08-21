@@ -15,7 +15,15 @@ void serial_init(void) {
     out8(0x3f8 + 1, 0x01);
 }
 
-void serial_putchar(char ch) {
+static void real_putchar(char ch) {
     while ((in8(0x3f8 + 5) & 0x20) == 0) {}
     out8(0x3f8, ch);
+}
+
+void serial_putchar(char ch) {
+    unsigned char x = (unsigned char)ch;
+    const char* digits = "0123456789abcdef";
+    real_putchar(digits[x >> 4]);
+    real_putchar(digits[x & 0xf]);
+    real_putchar(' ');
 }
