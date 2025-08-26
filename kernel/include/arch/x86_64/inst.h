@@ -25,12 +25,12 @@ ALWAYS_INLINE void compiler_barrier(void) {
 }
 
 ALWAYS_INLINE void out8(uint16_t port, uint8_t data) {
-    __asm__ __volatile__ ( "out dx, al" : : "Nd"(port), "a"(data) : "memory" );
+    __asm__ __volatile__ ( "out %0, %1" : : "d"(port), "a"(data) : "memory" );
 }
 
 ALWAYS_INLINE uint8_t in8(uint16_t port) {
     uint8_t data;
-    __asm__ __volatile__ ( "in al, dx" : "=a"(data) : "Nd"(port) : "memory" );
+    __asm__ __volatile__ ( "in %0, %1" : "=a"(data) : "d"(port) : "memory" );
     return data;
 }
 
@@ -69,7 +69,7 @@ ALWAYS_INLINE void spinloop_hint(void) {
 }
 
 ALWAYS_INLINE void pagetable_set(uintptr_t pagetable_phys) {
-    __asm__ __volatile__ ( "mov cr3, rax" : : "a"(pagetable_phys) : "memory" );
+    __asm__ __volatile__ ( "mov cr3, %0" : : "a"(pagetable_phys) : "memory" );
 }
 
 ALWAYS_INLINE void tlb_flush_all(void) {
