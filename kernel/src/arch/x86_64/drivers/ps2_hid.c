@@ -41,7 +41,7 @@
 #define ACK     0xfa
 #define RESEND  0xfe
 
-#define WAIT_REPEAT 100
+#define WAIT_REPEAT 0xfffff
 
 static struct ps2_keyboard g_kb;
 static struct ps2_mouse g_ms;
@@ -79,26 +79,28 @@ struct device_type {
 };
 
 static struct device_type read_device_type_reset(void) {
-    wait_for_output();
-    if (in8(OUTPUT) != 0xfa) {
-        wait_for_input();
-        out8(CTRL, CTRL_DISABLE_1);
-        return (struct device_type){ .n = -1 };
+    uint8_t bytes[4] = { 0 };
+    int n = 0;
+    for (int i = 0; i < WAIT_REPEAT && n < 4; i++) {
+        if (output_buffer_is_full()) {
+            bytes[n++] = in8(OUTPUT);
+            i = 0;
+        }
     }
-    wait_for_output();
-    if (in8(OUTPUT) != 0xaa) {
+
+    if (n < 2 || bytes[0] != 0xfa) {
         wait_for_input();
         out8(CTRL, CTRL_DISABLE_1);
         return (struct device_type){ .n = -1 };
     }
 
-    struct device_type type = { 0 };
-    for (int i = 0; i < WAIT_REPEAT && type.n < 2; i++) {
-        if (output_buffer_is_full()) {
-            type.bytes[type.n++] = in8(OUTPUT);
-        }
+    if (bytes[1] != 0xaa)  {
+        wait_for_input();
+        out8(CTRL, CTRL_DISABLE_1);
+        return (struct device_type){ .n = -1 };
     }
-    return type;
+
+    return (struct device_type){ .n = n - 2, .bytes = { bytes[2], bytes[3] } };
 }
 
 static bool kb_init(void) {
@@ -118,16 +120,19 @@ static bool kb_init(void) {
     return true;
 }
 
-static void kb_enable_scan(void) {
+static bool kb_enable_scan(void) {
     for (int i = 0; i < 10; i++) {
         wait_for_input();
         out8(INPUT, CMD_ENABLE_SCAN);
         wait_for_output();
         uint8_t ack = in8(OUTPUT);
         if (ack == ACK) {
-            break;
+            return true;
+        } else if (ack != RESEND) {
+            return false;
         }
     }
+    return false;
 }
 
 static bool ms_init(void) {
@@ -148,7 +153,7 @@ static bool ms_init(void) {
     return true;
 }
 
-static void ms_enable_scan(void) {
+static bool ms_enable_scan(void) {
     for (int i = 0; i < 10; i++) {
         wait_for_input();
         out8(CTRL, CTRL_WRITE_2);
@@ -157,9 +162,12 @@ static void ms_enable_scan(void) {
         wait_for_output();
         uint8_t ack = in8(OUTPUT);
         if (ack == ACK) {
-            break;
+            return true;
+        } else if (ack != RESEND) {
+            return false;
         }
     }
+    return false;
 }
 
 void hid_init(void) {
@@ -206,13 +214,16 @@ void hid_init(void) {
     if (in8(OUTPUT) != 0x00) {
         p1 = false;
     }
-    wait_for_input();
-    out8(CTRL, CTRL_TESTP_2);
-    wait_for_output();
-    if (in8(OUTPUT) != 0x00) {
-        p2 = false;
+    if (p2) {
+        wait_for_input();
+        out8(CTRL, CTRL_TESTP_2);
+        wait_for_output();
+        if (in8(OUTPUT) != 0x00) {
+            p2 = false;
+        }
     }
 
+    // init devices
     if (p1) {
         p1 = kb_init();
     }
@@ -221,11 +232,13 @@ void hid_init(void) {
     }
 
     // enable interrupt
+    p1 = p1 && kb_enable_scan();
     if (p1) {
-        kb_enable_scan();
+        pic_mark_irq_as_ready(PIC_IRQ_KEYBOARD);
     }
+    p2 = p2 && ms_enable_scan();
     if (p2) {
-        ms_enable_scan();
+        pic_mark_irq_as_ready(PIC_IRQ_MOUSE);
     }
 
     uint8_t cfg = CFG_TRANSLATE;
@@ -235,6 +248,13 @@ void hid_init(void) {
     out8(CTRL, CTRL_WRITE_CFG);
     wait_for_input();
     out8(INPUT, cfg);
+
+    if (p1) {
+        tty0_puts("ps2 keyboard initialized\n");
+    }
+    if (p2) {
+        tty0_puts("ps2 mouse initialized\n");
+    }
 }
 
 void isr_impl_keyboard(struct isr_stackframe* frame) {

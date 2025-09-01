@@ -35,3 +35,4 @@ void tty_printf(struct tty* tty, const char* fmt, ...) TTY_PRINTF_ATTRIB;
 void tty_on_read(struct tty* tty, char ch);
 
 #define tty0_printf(...) tty_printf(&g_tty0, __VA_ARGS__)
+#define tty0_puts(str) tty_puts(&g_tty0, str)

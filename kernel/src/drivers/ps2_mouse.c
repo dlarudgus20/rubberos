@@ -21,8 +21,8 @@ bool ps2_mouse_put_byte(struct ps2_mouse* ms, uint8_t byte, struct ps2_mouse_eve
     evt->right = (flags & 0x02) != 0;
     evt->middle = (flags & 0x04) != 0;
 
-    evt->dx = (int8_t)(ms->packet[1] | (flags & 0x10 ? 0xff00 : 0));
-    evt->dy = (int8_t)(ms->packet[2] | (flags & 0x20 ? 0xff00 : 0));
+    evt->dx = (int16_t)(ms->packet[1] | (flags & 0x10 ? 0xff00 : 0));
+    evt->dy = (int16_t)(ms->packet[2] | (flags & 0x20 ? 0xff00 : 0));
 
     return true;
 }

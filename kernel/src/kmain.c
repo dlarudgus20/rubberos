@@ -39,7 +39,7 @@ void kmain(void) {
 
     mmap_print_bootinfo();
     mmap_print_dyn();
-    pagetable_print();
+    //pagetable_print();
     dynmem_print();
 
     gui_draw_all();
