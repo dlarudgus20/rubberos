@@ -18,5 +18,8 @@
 
 #define PIC_INT_VECTOR      0x20
 
+void pic_init(void);
+void pic_enable_int(void);
+
 void pic_mark_irq_as_ready(uint8_t irq);
 void pic_send_eoi(uint8_t irq);

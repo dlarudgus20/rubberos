@@ -19,7 +19,7 @@ void pic_mark_irq_as_ready(uint8_t irq) {
     g_mask &= ~(1 << irq);
 }
 
-void interrupt_device_init(void) {
+void pic_init(void) {
     out8(MASTER1, 0x11);
     out8(MASTER2, PIC_INT_VECTOR);
     out8(MASTER2, 0x04);
@@ -31,7 +31,7 @@ void interrupt_device_init(void) {
     set_mask(g_mask);
 }
 
-void interrupt_device_enable(void) {
+void pic_enable_int(void) {
     set_mask(g_mask);
 }
 

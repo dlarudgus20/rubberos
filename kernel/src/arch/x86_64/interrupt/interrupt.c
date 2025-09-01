@@ -1,6 +1,15 @@
 #include <freec/assert.h>
 #include "interrupt.h"
 #include "arch/inst.h"
+#include "arch/x86_64/pic.h"
+
+void interrupt_device_init(void) {
+    pic_init();
+}
+
+void interrupt_device_enable(void) {
+    pic_enable_int();
+}
 
 void isr_impl_divide_by_zero(struct isr_stackframe* frame) {
     panicf("#DE "PRI_ISR_STACKFRAME, ARG_ISR_STACKFRAME(frame));
