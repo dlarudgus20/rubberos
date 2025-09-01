@@ -8,7 +8,6 @@
 #include "arch/x86_64/pic.h"
 
 #include "tty.h"
-#include "gui/gui.h"
 
 #define CTRL   0x64
 #define STAT   0x64
@@ -273,15 +272,13 @@ void intr_msg_on_keyboard(const struct intr_msg* msg) {
     struct ps2_keyevent evt;
     if (ps2_keyboard_put_byte(&g_kb, msg->data, &evt)) {
         struct ps2_char c = ps2_keyboard_process_keyevent(&g_kb, &evt);
-        if (!c.raw) {
-            tty_puts(&g_tty0, (const char[2]){ c.ch, 0 });
-        }
+        hid_on_keyboard(evt, c);
     }
 }
 
 void intr_msg_on_mouse(const struct intr_msg* msg) {
     struct ps2_mouse_event evt;
     if (ps2_mouse_put_byte(&g_ms, msg->data, &evt)) {
-        gui_mouse_move(evt.dx, -evt.dy);
+        hid_on_mouse(evt);
     }
 }

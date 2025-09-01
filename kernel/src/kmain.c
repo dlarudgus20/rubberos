@@ -57,8 +57,8 @@ void kmain(void) {
 
             interrupt_enable();
             dispatch_intr_msg(&msg);
-
-            gui_draw_all();
         }
+
+        gui_draw_all();
     }
 }
