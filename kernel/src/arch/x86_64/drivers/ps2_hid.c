@@ -269,15 +269,15 @@ void isr_impl_mouse(struct isr_stackframe* frame) {
 }
 
 void intr_msg_on_keyboard(const struct intr_msg* msg) {
-    struct ps2_keyevent evt;
+    struct hid_keyevent evt;
     if (ps2_keyboard_put_byte(&g_kb, msg->data, &evt)) {
-        struct ps2_char c = ps2_keyboard_process_keyevent(&g_kb, &evt);
+        struct hid_char c = ps2_keyboard_process_keyevent(&g_kb, &evt);
         hid_on_keyboard(evt, c);
     }
 }
 
 void intr_msg_on_mouse(const struct intr_msg* msg) {
-    struct ps2_mouse_event evt;
+    struct hid_mouse_event evt;
     if (ps2_mouse_put_byte(&g_ms, msg->data, &evt)) {
         hid_on_mouse(evt);
     }

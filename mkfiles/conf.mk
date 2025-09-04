@@ -6,6 +6,8 @@ else
 $(error [conf.mk] '$(CONFIG)': unknown configuration.)
 endif
 
+WARNING_CFLAGS := -Wall -Wextra -Werror -Wno-switch -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
+
 ifeq ($(TOOLSET), )
 
 TOOLSET_PREFIX			?= x86_64-elf
@@ -21,8 +23,7 @@ TOOLSET_QEMU			?= qemu-system-x86_64
 TOOLSET_BOCHS			?= bochs
 TOOLSET_GRUB_MKRESCUE	?= grub-mkrescue
 
-CFLAGS += -ggdb3 -ffreestanding -mcmodel=kernel -mno-red-zone -mno-mmx -mno-sse -mno-sse2 \
-	-std=c17 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
+CFLAGS += -ggdb3 -ffreestanding -mcmodel=kernel -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -std=c17 -pedantic $(WARNING_CFLAGS)
 NASMFLAGS += -f elf64
 LDFLAGS += -ffreestanding -nostdlib -Wl,--gc-sections -Wl,--fatal-warning
 
@@ -36,13 +37,13 @@ TOOLSET_OBJDUMP			?= objdump
 TOOLSET_NM				?= gcc-nm
 TOOLSET_GDB				?= gdb
 
-CFLAGS += -ggdb3 -std=c17 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
+CFLAGS += -ggdb3 -std=c17 -pedantic $(WARNING_CFLAGS)
 NASMFLAGS +=
 LDFLAGS += -Wl,--fatal-warning
 
 TEST_GXX				?= g++
 
-TEST_CXXFLAGS += -masm=intel -ggdb3 -std=c++20 -pedantic -Wall -Wextra -Werror -Wno-unused-parameter -Wno-error=unused-variable -Wno-error=unused-function
+TEST_CXXFLAGS += -masm=intel -ggdb3 -std=c++20 -pedantic $(WARNING_CFLAGS)
 TEST_LDFLAGS += -Wl,--fatal-warning
 
 ifeq ($(CONFIG), debug)

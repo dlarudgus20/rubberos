@@ -31,7 +31,7 @@ void graphic_set_clipping(struct graphic* g, const struct rect* rt) {
 }
 
 void graphic_draw_pixel(struct graphic* g, int x, int y, uint32_t color) {
-    if (rect_is_in(&g->clipping, x, y)) {
+    if (rect_contains(&g->clipping, x, y)) {
         g->framebuffer[(x + g->offset.x) + (y + g->offset.y) * g->pitch] = color;
     }
 }

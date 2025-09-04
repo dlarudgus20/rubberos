@@ -1,7 +1,7 @@
 #include <freec/stdlib.h>
 #include "gui/shapes.h"
 
-bool rect_is_in(const struct rect* r, int x, int y) {
+bool rect_contains(const struct rect* r, int x, int y) {
     return r->x <= x && x < r->x + r->width
         && r->y <= y && y < r->y + r->height;
 }

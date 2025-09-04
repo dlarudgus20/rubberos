@@ -20,12 +20,16 @@ void tty0_init(void) {
 }
 
 noreturn void panic_impl(const char* msg, const char* file, const char* func, unsigned line) {
-    intrlock_acquire(&g_tty0.lock);
+    static bool tried = false;
+    if (!tried) {
+        intrlock_acquire(&g_tty0.lock);
+        tried = true;
+    }
 
     char buf[1024];
     snprintf(buf, sizeof(buf), "[%s:%s:%d] %s\n", file, func, line, msg);
     tty_puts_nolock(&g_tty0, buf);
-    singlylist_foreach(ptr, &g_tty0.devices) {
+    linkedlist_foreach(ptr, &g_tty0.devices) {
         struct tty_device* device = container_of(ptr, struct tty_device, link);
         if (device->flush) {
             device->flush(device);
@@ -37,22 +41,22 @@ noreturn void panic_impl(const char* msg, const char* file, const char* func, un
 
 void tty_init(struct tty* tty) {
     intrlock_init(&tty->lock);
-    singlylist_init(&tty->devices);
+    linkedlist_init(&tty->devices);
     tty->input_buffer[0] = 0;
     tty->input_index = 0;
 }
 
 void tty_register_device(struct tty* tty, struct tty_device* device) {
     intrlock_acquire(&tty->lock);
-    singlylist_push_front(&tty->devices, &device->link);
+    linkedlist_push_back(&tty->devices, &device->link);
     intrlock_release(&tty->lock);
 }
 
 void tty_unregister_device(struct tty* tty, struct tty_device* device) {
     intrlock_acquire(&tty->lock);
-    singlylist_foreach_2(before, ptr, &tty->devices) {
+    linkedlist_foreach(ptr, &tty->devices) {
         if (ptr == &device->link) {
-            singlylist_remove_after(before);
+            linkedlist_remove(ptr);
             break;
         }
     }
@@ -66,7 +70,7 @@ void tty_puts(struct tty* tty, const char* str) {
 }
 
 static void tty_puts_nolock(struct tty* tty, const char* str) {
-    singlylist_foreach(ptr, &tty->devices) {
+    linkedlist_foreach(ptr, &tty->devices) {
         struct tty_device* device = container_of(ptr, struct tty_device, link);
         device->write(device, str);
     }

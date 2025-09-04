@@ -1,6 +1,6 @@
 #include "drivers/hid.h"
 #include "tty.h"
-#include "gui/gui.h"
+#include "gui/evt.h"
 
 #include "memory.h"
 #include "arch/context.h"
@@ -21,7 +21,7 @@ static void testtask_main(struct ctxdata* arg) {
     }
 }
 
-static void testtask(bool quit) {
+static __attribute__((unused)) void testtask(bool quit) {
     static struct ctxdata* ptr = NULL;
 
     if (quit) {
@@ -53,13 +53,10 @@ static void testtask(bool quit) {
     }
 }
 
-void hid_on_keyboard(struct ps2_keyevent evt, struct ps2_char c) {
-    if (!c.raw) {
-        //tty_puts(&g_tty0, (const char[2]){ c.ch, 0 });
-        testtask(c.ch == 'q');
-    }
+void hid_on_keyboard(struct hid_keyevent evt, struct hid_char c) {
+    gui_on_keyboard(evt, c);
 }
 
-void hid_on_mouse(struct ps2_mouse_event evt) {
-    gui_mouse_move(evt.dx, -evt.dy);
+void hid_on_mouse(struct hid_mouse_event evt) {
+    gui_on_mouse(evt);
 }

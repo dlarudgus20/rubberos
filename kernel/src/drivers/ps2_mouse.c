@@ -6,7 +6,7 @@ void ps2_mouse_init(struct ps2_mouse* ms) {
     memset(ms, 0, sizeof(struct ps2_mouse));
 }
 
-bool ps2_mouse_put_byte(struct ps2_mouse* ms, uint8_t byte, struct ps2_mouse_event* evt) {
+bool ps2_mouse_put_byte(struct ps2_mouse* ms, uint8_t byte, struct hid_mouse_event* evt) {
     ms->packet[ms->packet_index] = byte;
     ms->packet_index++;
 

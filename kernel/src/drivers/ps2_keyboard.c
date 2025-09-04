@@ -166,7 +166,7 @@ static keycode_t keycode_extended(uint8_t byte) {
     }
 }
 
-bool ps2_keyboard_put_byte(struct ps2_keyboard* kb, uint8_t byte, struct ps2_keyevent* evt) {
+bool ps2_keyboard_put_byte(struct ps2_keyboard* kb, uint8_t byte, struct hid_keyevent* evt) {
     if (kb->state == STATE_EXT1_1) {
         if (byte == 0xe0) {
             kb->state = STATE_EXT1_2;
@@ -264,10 +264,10 @@ bool ps2_keyboard_put_byte(struct ps2_keyboard* kb, uint8_t byte, struct ps2_key
 }
 
 
-struct ps2_char ps2_keyboard_process_keyevent(struct ps2_keyboard* kb, const struct ps2_keyevent* evt) {
-#define PS2RAW(k) (struct ps2_char){ .raw = true, .ch = 0, .keycode = (k) }
-#define PS2CHAR(c) (struct ps2_char){ .raw = false, .ch = (c), .keycode = evt->keycode }
-    const struct ps2_char raw = PS2RAW(evt->keycode);
+struct hid_char ps2_keyboard_process_keyevent(struct ps2_keyboard* kb, const struct hid_keyevent* evt) {
+#define PS2RAW(k) (struct hid_char){ .raw = true, .ch = 0, .keycode = (k) }
+#define PS2CHAR(c) (struct hid_char){ .raw = false, .ch = (c), .keycode = evt->keycode }
+    const struct hid_char raw = PS2RAW(evt->keycode);
 
     const bool control = kb->lctrl || kb->rctrl || kb->lalt || kb->ralt;
     const bool shift = kb->lshift || kb->rshift;
@@ -358,7 +358,7 @@ struct ps2_char ps2_keyboard_process_keyevent(struct ps2_keyboard* kb, const str
             case KEY_NUMPAD_ENTER:  return PS2CHAR('\n');
         }
     }
-    
+
     switch (evt->keycode) {
         case KEY_NUMPAD0:       return kb->num ? (control ? raw : PS2CHAR('0')) : PS2RAW(KEY_INSERT);
         case KEY_NUMPAD1:       return kb->num ? (control ? raw : PS2CHAR('1')) : PS2RAW(KEY_END);

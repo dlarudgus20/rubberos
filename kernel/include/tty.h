@@ -1,17 +1,17 @@
 #pragma once
 
-#include <collections/singlylist.h>
+#include <collections/linkedlist.h>
 #include "spinlock.h"
 
 struct tty_device {
-    struct singlylist_link link;
+    struct linkedlist_link link;
     void (*write)(struct tty_device* device, const char* str);
     void (*flush)(struct tty_device* device);
 };
 
 struct tty {
     struct intrlock lock;
-    struct singlylist devices;
+    struct linkedlist devices;
     char input_buffer[256];
     unsigned input_index;
 };

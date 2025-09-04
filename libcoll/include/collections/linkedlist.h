@@ -26,3 +26,9 @@ struct linkedlist_link* linkedlist_pop_back(struct linkedlist* list);
 void linkedlist_insert_before(struct linkedlist_link* restrict link, struct linkedlist_link* restrict to_insert);
 void linkedlist_insert_after(struct linkedlist_link* restrict link, struct linkedlist_link* restrict to_insert);
 void linkedlist_remove(struct linkedlist_link* link);
+
+#define linkedlist_foreach(ptr, list) \
+    for (struct linkedlist_link* ptr = linkedlist_head(list); !linkedlist_is_nil(list, ptr); ptr = ptr->next)
+
+#define linkedlist_foreach_backward(ptr, list) \
+    for (struct linkedlist_link* ptr = linkedlist_tail(list); !linkedlist_is_nil(list, ptr); ptr = ptr->prev)
