@@ -70,6 +70,7 @@ isr_%1:
     mov rdi, rsp
     call isr_impl_%1
     pop_all
+    add rsp, 8
     iretq
 %endmacro
 
