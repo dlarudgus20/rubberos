@@ -147,17 +147,24 @@ void gui_draw_all(void) {
     struct graphic* g = &g_winman.backbuffer;
     struct rect inv = gi;
 
+    graphic_set_offset(g, &(struct rect){ 0, 0, scr.width, scr.height });
     graphic_set_clipping(g, &gi);
     graphic_fill_rect(g, 0, 0, scr.width, scr.height, bg);
 
     singlylist_foreach(ptr, &draw_list) {
         struct window* w = container_of(ptr, struct window, draw_link);
+
+        struct rect wi_scr = rect_intersect(&w->scr_rect, &gi);
+        struct rect wi_win = scr_to_win(w, &wi_scr);
+        w->win_invalidated = rect_union(&w->win_invalidated, &wi_win);
+
         struct rect scr_inv = win_to_scr(w, &w->win_invalidated);
         inv = rect_union(&inv, &scr_inv);
         draw_window(w, g);
     }
 
     graphic_set_offset(g, &(struct rect){ 0, 0, scr.width, scr.height });
+    graphic_set_clipping(g, &gi);
     if (sizing) {
         graphic_draw_rect_xor(g, sizing_rect.x, sizing_rect.y, sizing_rect.width, sizing_rect.height, 2, 0xffffff);
     }
@@ -177,12 +184,6 @@ void gui_draw_all(void) {
 }
 
 static void invalidate_global(const struct rect* rt) {
-    linkedlist_foreach(ptr, &g_winman.window_list) {
-        struct window* w = container_of(ptr, struct window, link);
-        struct rect inv = rect_intersect(&w->scr_rect, rt);
-        struct rect scr = scr_to_win(w, &inv);
-        w->win_invalidated = rect_union(&w->win_invalidated, &scr);
-    }
     g_winman.global_invalidated = rect_union(&g_winman.global_invalidated, rt);
 }
 
@@ -231,6 +232,13 @@ void window_sendmsg_focused(enum window_message msg, void* param) {
     if (focused && focused->proc) {
         focused->proc(focused, msg, param);
     }
+}
+
+static void move_to_front(struct window* w) {
+    g_winman.focused = w;
+    linkedlist_remove(&w->link);
+    linkedlist_push_back(&g_winman.window_list, &w->link);
+    invalidate_window_all(w);
 }
 
 static void on_nc_mouse(struct window* w, struct gui_mouse_event evt) {
@@ -289,6 +297,10 @@ void window_sendmsg_mouse(int x, int y, struct gui_mouse_event evt) {
             on_moving(target, evt);
             target = NULL;
         } else {
+            if (gui_mouse_event_down(evt, left) || gui_mouse_event_down(evt, right) || gui_mouse_event_down(evt, middle)) {
+                move_to_front(target);
+            }
+
             struct rect client = client_rect_for_window(target->scr_rect.width, target->scr_rect.height);
             evt.x -= target->scr_rect.x;
             evt.y -= target->scr_rect.y;

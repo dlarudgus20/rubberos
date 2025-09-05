@@ -10,6 +10,7 @@
 #include "tty.h"
 #include "gui/gui.h"
 #include "gui/tty_window.h"
+#include "gui/window.h"
 
 static void dispatch_intr_msg(struct intr_msg* msg) {
     switch (msg->type) {
@@ -32,6 +33,11 @@ void kmain(void) {
 
     struct tty_window tw;
     tty_window_init(&tw, &g_tty0);
+
+    struct window* w1 = window_new();
+    w1->scr_rect = (struct rect){ 50, 50, 400, 300 };
+    struct window* w2 = window_new();
+    w2->scr_rect = (struct rect){ 75, 75, 400, 300 };
 
     interrupt_device_init();
     hid_init();
