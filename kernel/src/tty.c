@@ -20,11 +20,7 @@ void tty0_init(void) {
 }
 
 noreturn void panic_impl(const char* msg, const char* file, const char* func, unsigned line) {
-    static bool tried = false;
-    if (!tried) {
-        intrlock_acquire(&g_tty0.lock);
-        tried = true;
-    }
+    interrupt_disable();
 
     char buf[1024];
     snprintf(buf, sizeof(buf), "[%s:%s:%d] %s\n", file, func, line, msg);

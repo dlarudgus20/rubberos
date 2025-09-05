@@ -1,9 +1,20 @@
 #include <stddef.h>
+#include <freec/stdlib.h>
+#include <freec/string.h>
+#include <freec/assert.h>
+#include <slab/slab.h>
 
 #include "gui/graphic.h"
 #include "drivers/framebuffer.h"
+#include "memory.h"
 
 extern unsigned char g_ascii_font[];
+
+static struct slab_allocator g_slab_rects;
+
+void graphic_init(void) {
+    SLAB_INIT(&g_slab_rects, struct rect);
+}
 
 void graphic_from_fb(struct graphic* g) {
     const struct fb_info* fi = fb_info_get();
@@ -11,23 +22,44 @@ void graphic_from_fb(struct graphic* g) {
     g->pitch = fi->pitch / sizeof(*g->framebuffer);
     g->width = fi->width;
     g->height = fi->height;
-    g->offset = (struct rect){ .x = 0, .y = 0, .width = fi->width, .height = fi->height };
-    g->clipping = (struct rect){ .x = 0, .y = 0, .width = fi->width, .height = fi->height };
-    g->bg_color = 0;
+    g->offset = (struct rect){ 0, 0, fi->width, fi->height };
+    g->clipping = (struct rect){ 0, 0, fi->width, fi->height };
+}
+
+void graphic_create_memory(struct graphic* g) {
+    const struct fb_info* fi = fb_info_get();
+    struct slice mem = dynmem_alloc(fi->width * fi->height * sizeof(color_t));
+    assert(mem.ptr);
+
+    g->framebuffer = mem.ptr;
+    g->pitch = fi->width;
+    g->width = fi->width;
+    g->height = fi->height;
+    g->offset = (struct rect){ 0, 0, fi->width, fi->height };
+    g->clipping = (struct rect){ 0, 0, fi->width, fi->height };
+}
+
+void graphic_destroy_memory(struct graphic* g) {
+    dynmem_dealloc(g->framebuffer, g->pitch * g->height * sizeof(color_t));
 }
 
 void graphic_set_offset(struct graphic* g, const struct rect* rt) {
-    g->offset = rect_intersect(rt, &(struct rect){ .x = 0, .y = 0, .width = g->width, .height = g->height });
+    struct rect base = { 0, 0, g->width, g->height };
+    g->offset = rt ? *rt : base;
     graphic_set_clipping(g, NULL);
 }
 
 void graphic_set_clipping(struct graphic* g, const struct rect* rt) {
-    struct rect base = { .x = 0, .y = 0, .width = g->offset.width, .height = g->offset.height };
-    if (rt) {
-        g->clipping = rect_intersect(rt, &base);
-    } else {
-        g->clipping = base;
-    }
+    int ow = MIN(g->offset.width, (int)g->width - g->offset.x);
+    int oh = MIN(g->offset.height, (int)g->height - g->offset.y);
+
+    int x = -MIN(0, g->offset.x);
+    int y = -MIN(0, g->offset.y);
+    int w = MAX(ow - x, 0);
+    int h = MAX(oh - y, 0);
+    struct rect base = { x, y, w, h };
+
+    g->clipping = rt ? rect_intersect(rt, &base) : base;
 }
 
 void graphic_draw_pixel(struct graphic* g, int x, int y, uint32_t color) {
@@ -37,8 +69,7 @@ void graphic_draw_pixel(struct graphic* g, int x, int y, uint32_t color) {
 }
 
 void graphic_fill_rect(struct graphic* g, int x, int y, int width, int height, uint32_t color) {
-    struct rect r = rect_intersect(&g->clipping, &(struct rect){
-        .x = x, .y = y, .width = width, .height = height });
+    struct rect r = rect_intersect(&g->clipping, &(struct rect){ x, y, width, height });
     for (int yi = 0; yi < r.height; yi++) {
         for (int xi = 0; xi < r.width; xi++) {
             g->framebuffer[(g->offset.x + r.x + xi) + (g->offset.y + r.y + yi) * g->pitch] = color;
@@ -51,6 +82,22 @@ void graphic_draw_rect(struct graphic* g, int x, int y, int width, int height, i
     graphic_fill_rect(g, x, y + height - thickness, width, thickness, color);
     graphic_fill_rect(g, x, y + thickness, thickness, height - 2 * thickness, color);
     graphic_fill_rect(g, x + width - thickness, y + thickness, thickness, height - 2 * thickness, color);
+}
+
+void graphic_fill_rect_xor(struct graphic* g, int x, int y, int width, int height, uint32_t color) {
+    struct rect r = rect_intersect(&g->clipping, &(struct rect){ x, y, width, height });
+    for (int yi = 0; yi < r.height; yi++) {
+        for (int xi = 0; xi < r.width; xi++) {
+            g->framebuffer[(g->offset.x + r.x + xi) + (g->offset.y + r.y + yi) * g->pitch] ^= color;
+        }
+    }
+}
+
+void graphic_draw_rect_xor(struct graphic* g, int x, int y, int width, int height, int thickness, uint32_t color) {
+    graphic_fill_rect_xor(g, x, y, width, thickness, color);
+    graphic_fill_rect_xor(g, x, y + height - thickness, width, thickness, color);
+    graphic_fill_rect_xor(g, x, y + thickness, thickness, height - 2 * thickness, color);
+    graphic_fill_rect_xor(g, x + width - thickness, y + thickness, thickness, height - 2 * thickness, color);
 }
 
 void graphic_draw_char(struct graphic* g, int x, int y, char c, uint32_t color) {
@@ -114,26 +161,26 @@ void graphic_draw_string(struct graphic* g, const struct rect* rt, const char* s
     g->clipping = old_clip;
 }
 
-void graphic_bitblt(struct graphic* g, int x, int y, int cx, int cy, int x0, int y0) {
-    struct rect rd = rect_intersect(&g->clipping, &(struct rect){
-        .x = x, .y = y, .width = cx, .height = cy });
+void graphic_bitblt(struct graphic* g, int x, int y, int cx, int cy, struct graphic* g0, int x0, int y0) {
+    struct rect dst_rect = { x, y, cx, cy };
+    struct rect clipped_dst = rect_intersect(&g->clipping, &dst_rect);
 
-    int dx = rd.x - x;
-    int dy = rd.y - y;
+    int skip_x = clipped_dst.x - dst_rect.x;
+    int skip_y = clipped_dst.y - dst_rect.y;
 
-    int leftpad = x0 > 0 ? 0 : -x0;
-    int rightpad = x0 + cx < g->offset.width ? 0 : (x0 + cx - g->offset.width);
+    struct rect skipped_src = { x0 + skip_x, y0 + skip_y, cx - skip_x, cy - skip_y };
 
-    for (int yi = dy; rd.y + yi < rd.height; yi++) {
-        for (int xi = dx; rd.x + xi < rd.width; xi++) {
-            color_t* d = g->framebuffer + (g->offset.x + rd.x + xi) + (g->offset.y + rd.y + yi) * g->pitch;
-            if (xi < leftpad || cx - xi <= rightpad) {
-                *d = g->bg_color;
-            } else {
-                int sx = g->offset.x + x0 + xi;
-                int sy = g->offset.y + y0 + yi;
-                *d = g->framebuffer[sx + sy * g->pitch];
-            }
+    int copy_width = MIN(clipped_dst.width, skipped_src.width);
+    int copy_height = MIN(clipped_dst.height, skipped_src.height);
+
+    for (int yi = 0; yi < copy_height; yi++) {
+        for (int xi = 0; xi < copy_width; xi++) {
+            int src_x = g0->offset.x + skipped_src.x + xi;
+            int src_y = g0->offset.y + skipped_src.y + yi;
+            int dst_x = g->offset.x + clipped_dst.x + xi;
+            int dst_y = g->offset.y + clipped_dst.y + yi;
+
+            g->framebuffer[dst_x + dst_y * g->pitch] = g0->framebuffer[src_x + src_y * g0->pitch];
         }
     }
 }

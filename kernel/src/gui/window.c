@@ -14,10 +14,17 @@ static void draw_mouse(struct graphic* g, int x, int y);
 void gui_init(void) {
     intrlock_init(&g_winman.lock);
     SLAB_INIT(&g_winman.slab_window, struct window);
+
+    graphic_create_memory(&g_winman.backbuffer);
     g_winman.painting = false;
+
+    g_winman.sizing_rect = (struct rect){ 0 };
+    g_winman.sizing_pt = (struct point){ 0 };
+    g_winman.sizing = false;
 
     linkedlist_init(&g_winman.window_list);
     g_winman.focused = NULL;
+    g_winman.mouse_capturing = NULL;
 
     const struct fb_info* fi = fb_info_get();
     g_winman.scr_size.width = fi->width;
@@ -40,6 +47,7 @@ struct window* window_new(void) {
     w->title = "New Window";
     w->scr_rect = (struct rect){ 120, 120, 640, 480 };
     w->bg_color = 0xffffff;
+    w->moving = false;
     w->proc = NULL;
     invalidate_window_all(w);
 
@@ -80,7 +88,6 @@ static struct rect win_to_scr(const struct window* w, const struct rect* rt) {
 static void draw_window(struct window* w, struct graphic* g) {
     graphic_set_offset(g, &w->scr_rect);
     graphic_set_clipping(g, &w->win_invalidated);
-    g->bg_color = w->bg_color;
 
     graphic_draw_rect(g, 0, 0, w->scr_rect.width, w->scr_rect.height, BORDER1, 0x2f2f2f);
     graphic_draw_rect(g, BORDER1, BORDER1, w->scr_rect.width - 2 * BORDER1, w->scr_rect.height - 2 * BORDER1, BORDER2, 0x3f3f3f);
@@ -96,7 +103,7 @@ static void draw_window(struct window* w, struct graphic* g) {
     graphic_draw_string(g, &title_str, w->title, 0x000000, false);
 
     struct rect client = { border, border + TITLE_HEIGHT, inborder_width, inborder_height - TITLE_HEIGHT };
-    graphic_fill_rect(g, client.x, client.y, client.width, client.height, g->bg_color);
+    graphic_fill_rect(g, client.x, client.y, client.width, client.height, w->bg_color);
 
     if (w->proc) {
         struct rect client_inv = rect_intersect(&w->win_invalidated, &client);
@@ -124,6 +131,9 @@ void gui_draw_all(void) {
     struct point mouse = g_winman.mouse_pos;
     color_t bg = g_winman.bg_color;
 
+    struct rect sizing_rect = g_winman.sizing_rect;
+    bool sizing = g_winman.sizing;
+
     assert(!g_winman.painting);
     g_winman.painting = true;
     linkedlist_foreach_backward(ptr, &g_winman.window_list) {
@@ -134,19 +144,28 @@ void gui_draw_all(void) {
     intrlock_release(&g_winman.lock);
 
     // draw without lock
-    struct graphic g;
-    graphic_from_fb(&g);
+    struct graphic* g = &g_winman.backbuffer;
+    struct rect inv = gi;
 
-    graphic_set_clipping(&g, &gi);
-    graphic_fill_rect(&g, 0, 0, scr.width, scr.height, bg);
+    graphic_set_clipping(g, &gi);
+    graphic_fill_rect(g, 0, 0, scr.width, scr.height, bg);
 
     singlylist_foreach(ptr, &draw_list) {
         struct window* w = container_of(ptr, struct window, draw_link);
-        draw_window(w, &g);
+        struct rect scr_inv = win_to_scr(w, &w->win_invalidated);
+        inv = rect_union(&inv, &scr_inv);
+        draw_window(w, g);
     }
 
-    graphic_set_offset(&g, &(struct rect){ 0, 0, scr.width, scr.height });
-    draw_mouse(&g, mouse.x, mouse.y);
+    graphic_set_offset(g, &(struct rect){ 0, 0, scr.width, scr.height });
+    if (sizing) {
+        graphic_draw_rect_xor(g, sizing_rect.x, sizing_rect.y, sizing_rect.width, sizing_rect.height, 2, 0xffffff);
+    }
+    draw_mouse(g, mouse.x, mouse.y);
+
+    struct graphic frontbuffer;
+    graphic_from_fb(&frontbuffer);
+    graphic_bitblt(&frontbuffer, inv.x, inv.y, inv.width, inv.height, g, inv.x, inv.y);
 
     // lock
     intrlock_acquire(&g_winman.lock);
@@ -214,8 +233,37 @@ void window_sendmsg_focused(enum window_message msg, void* param) {
     }
 }
 
-static void on_nc_mouse(struct window* w, struct gui_mouse_event* evt) {
-    // TODO: process non-client mouse event
+static void on_nc_mouse(struct window* w, struct gui_mouse_event evt) {
+    struct rect title = { CLIENT_X0, CLIENT_X0, w->scr_rect.width - 2 * CLIENT_X0, TITLE_HEIGHT };
+    if (rect_contains(&title, evt.x, evt.y) && gui_mouse_event_down(evt, left)) {
+        w->moving = true;
+        g_winman.mouse_capturing = w;
+        g_winman.sizing = true;
+        g_winman.sizing_rect = w->scr_rect;
+        g_winman.sizing_pt = (struct point){ evt.x + w->scr_rect.x, evt.y + w->scr_rect.y };
+        invalidate_global(&w->scr_rect);
+    }
+}
+
+static void on_moving(struct window* w, struct gui_mouse_event evt) {
+    struct rect old = g_winman.sizing_rect;
+    g_winman.sizing_rect = w->scr_rect;
+    g_winman.sizing_rect.x += evt.x - g_winman.sizing_pt.x;
+    g_winman.sizing_rect.y += evt.y - g_winman.sizing_pt.y;
+
+    struct rect inv = rect_union(&old, &g_winman.sizing_rect);
+
+    if (gui_mouse_event_up(evt, left)) {
+        inv = rect_union(&inv, &w->scr_rect);
+        w->scr_rect = g_winman.sizing_rect;
+        w->moving = false;
+        g_winman.mouse_capturing = NULL;
+        g_winman.sizing = false;
+    }
+
+    invalidate_global(&inv);
+
+    // BUG: if window is on negative coordinate, it isn't drawn correctly
 }
 
 void window_sendmsg_mouse(int x, int y, struct gui_mouse_event evt) {
@@ -224,24 +272,33 @@ void window_sendmsg_mouse(int x, int y, struct gui_mouse_event evt) {
     // lock
     intrlock_acquire(&g_winman.lock);
 
-    linkedlist_foreach_backward(ptr, &g_winman.window_list) {
-        struct window* w = container_of(ptr, struct window, link);
-        if (rect_contains(&w->scr_rect, x, y)) {
-            target = w;
-            break;
+    if (g_winman.mouse_capturing) {
+        target = g_winman.mouse_capturing;
+    } else {
+        linkedlist_foreach_backward(ptr, &g_winman.window_list) {
+            struct window* w = container_of(ptr, struct window, link);
+            if (rect_contains(&w->scr_rect, x, y)) {
+                target = w;
+                break;
+            }
         }
     }
 
     if (target) {
-        struct rect client = client_rect_for_window(target->scr_rect.width, target->scr_rect.height);
-        evt.x -= target->scr_rect.x;
-        evt.y -= target->scr_rect.y;
-        if (rect_contains(&client, evt.x, evt.y)) {
-            evt.x -= client.x;
-            evt.y -= client.y;
-        } else {
-            on_nc_mouse(target, &evt);
+        if (target->moving) {
+            on_moving(target, evt);
             target = NULL;
+        } else {
+            struct rect client = client_rect_for_window(target->scr_rect.width, target->scr_rect.height);
+            evt.x -= target->scr_rect.x;
+            evt.y -= target->scr_rect.y;
+            if (rect_contains(&client, evt.x, evt.y)) {
+                evt.x -= client.x;
+                evt.y -= client.y;
+            } else {
+                on_nc_mouse(target, evt);
+                target = NULL;
+            }
         }
     }
 
@@ -255,9 +312,13 @@ void window_sendmsg_mouse(int x, int y, struct gui_mouse_event evt) {
 
 #define MOUSE_WIDTH 13
 #define MOUSE_HEIGHT 19
+#define MOUSE_BLOCK_LEN (MOUSE_WIDTH * MOUSE_HEIGHT + 1)
 
 static void draw_mouse(struct graphic* g, int x, int y) {
-    static const char block[] =
+    typedef const char mouse_block_t[MOUSE_BLOCK_LEN];
+
+    static mouse_block_t blocks[MOUSE_BLOCK_LEN] = {
+        // arrow
         "*............"
         "**..........."
         "*-*.........."
@@ -276,14 +337,16 @@ static void draw_mouse(struct graphic* g, int x, int y) {
         "*-*..*-o*...."
         "**....*oo*..."
         "*.....*--*..."
-        ".......**....";
+        ".......**....",
+    };
 
-    static_assert(sizeof(block) == MOUSE_HEIGHT * MOUSE_WIDTH + 1, "mouse block size does not match");
+    //assert(type < sizeof(blocks) / sizeof(blocks[0]));
+    mouse_block_t* block = &blocks[0];
 
     for (int yi = 0; yi < MOUSE_HEIGHT; yi++) {
         for (int xi = 0; xi < MOUSE_WIDTH; xi++) {
             color_t color;
-            switch (block[yi * MOUSE_WIDTH + xi]) {
+            switch ((*block)[yi * MOUSE_WIDTH + xi]) {
                 case '*': color = 0x000000; break;
                 case '@': color = 0x404040; break;
                 case '/': color = 0x808080; break;
